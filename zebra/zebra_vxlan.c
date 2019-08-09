@@ -2495,6 +2495,8 @@ static int zvni_neigh_send_add_to_client(vni_t vni, struct ipaddr *ip,
 	/* Set router flag (R-bit) based on local neigh entry add */
 	if (CHECK_FLAG(neigh_flags, ZEBRA_NEIGH_ROUTER_FLAG))
 		SET_FLAG(flags, ZEBRA_MACIP_TYPE_ROUTER_FLAG);
+	if (CHECK_FLAG(neigh_flags, ZEBRA_NEIGH_SVI_IP))
+		SET_FLAG(flags, ZEBRA_MACIP_TYPE_SVI_IP);
 
 	return zvni_macip_send_msg_to_client(vni, macaddr, ip, flags,
 			     seq, ZEBRA_NEIGH_ACTIVE, ZEBRA_MACIP_ADD);
@@ -2815,6 +2817,7 @@ static int zvni_gw_macip_add(struct interface *ifp, zebra_vni_t *zvni,
 					      n->flags, n->loc_seq);
 	} else if (advertise_svi_macip_enabled(zvni)) {
 
+		SET_FLAG(n->flags, ZEBRA_NEIGH_SVI_IP);
 		if (IS_ZEBRA_DEBUG_VXLAN)
 			zlog_debug(
 			"SVI %s(%u) L2-VNI %u, sending SVI MAC %s IP %s add to BGP with flags 0x%x",
