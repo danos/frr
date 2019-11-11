@@ -1,0 +1,66 @@
+From: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+Date: Wed, 1 Aug 2018 11:20:07 +0100
+Subject: ospf_range_command
+
+---
+ ospfd/ospf_vty.c | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)
+
+--- frr.orig/ospfd/ospf_vty.c
++++ frr/ospfd/ospf_vty.c
+@@ -9906,27 +9906,42 @@ static int config_write_ospf_area(struct
+ 		for (rn1 = route_top(area->ranges); rn1; rn1 = route_next(rn1))
+ 			if (rn1->info) {
+ 				struct ospf_area_range *range = rn1->info;
+-
+-				vty_out(vty, " area %s range %s/%d", buf,
+-					inet_ntoa(rn1->p.u.prefix4),
+-					rn1->p.prefixlen);
++				int output_default = 1;
+ 
+ 				if (range->cost_config
+-				    != OSPF_AREA_RANGE_COST_UNSPEC)
+-					vty_out(vty, " cost %d",
++				    != OSPF_AREA_RANGE_COST_UNSPEC) {
++					vty_out(vty," area %s range %s/%d"
++						" cost %d\n", buf,
++						inet_ntoa(rn1->p.u.prefix4),
++						rn1->p.prefixlen,
+ 						range->cost_config);
++					output_default = 0;
++				}
+ 
+ 				if (!CHECK_FLAG(range->flags,
+-						OSPF_AREA_RANGE_ADVERTISE))
+-					vty_out(vty, " not-advertise");
+-
++						OSPF_AREA_RANGE_ADVERTISE)) {
++					vty_out(vty," area %s range %s/%d"
++						" not-advertise\n", buf,
++						inet_ntoa(rn1->p.u.prefix4),
++						rn1->p.prefixlen);
++					output_default = 0;
++				}
+ 				if (CHECK_FLAG(range->flags,
+-					       OSPF_AREA_RANGE_SUBSTITUTE))
+-					vty_out(vty, " substitute %s/%d",
++					       OSPF_AREA_RANGE_SUBSTITUTE)) {
++					vty_out(vty," area %s range %s/%d"
++						" substitute %s/%d\n", buf,
++						inet_ntoa(rn1->p.u.prefix4),
++						rn1->p.prefixlen,
+ 						inet_ntoa(range->subst_addr),
+ 						range->subst_masklen);
+-
+-				vty_out(vty, "\n");
++					output_default = 0;
++				}
++				if (output_default) {
++					vty_out(vty," area %s range %s/%d\n",
++						buf,
++						inet_ntoa(rn1->p.u.prefix4),
++						rn1->p.prefixlen);
++				}
+ 			}
+ 
+ 		if (EXPORT_NAME(area))

@@ -1,0 +1,93 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Wed, 1 Aug 2018 11:20:07 +0100
+Subject: frr-reload-ldp
+
+---
+ tools/frr-reload.py | 40 ++++++++++++++++++++++++++++++++++------
+ 1 file changed, 34 insertions(+), 6 deletions(-)
+
+--- frr.orig/tools/frr-reload.py
++++ frr/tools/frr-reload.py
+@@ -341,6 +341,21 @@ router ospf
+  timers throttle spf 0 50 5000
+ !
+ end
++mpls ldp
++ !
++ address-family ipv4
++  discovery transport-address 1.1.1.1
++  !
++  interface dp0p1s2
++  end
++  !
++  interface dp0p1s3
++  end
++  !
++ exit-address-family
++ !
++!
++end
+         '''
+ 
+         # The code assumes that its working on the output from the "vtysh -m"
+@@ -372,7 +387,8 @@ end
+                                 "ip ",
+                                 "ipv6 ",
+                                 "log ",
+-                                "mpls",
++                                "mpls label ",
++                                "mpls lsp ",
+                                 "no ",
+                                 "password ",
+                                 "ptm-enable",
+@@ -403,7 +419,12 @@ end
+                 self.save_contexts(ctx_keys, current_context_lines)
+                 new_ctx = True
+ 
+-            elif line in ["end", "exit-vrf"]:
++            # end from [mpls ldp, address-family, interface] mode means pop
++            elif (line in ["end", "exit-vrf"] and not
++                  (len(ctx_keys) == 3 and
++                   ctx_keys[0].startswith('mpls ldp') and
++                   ctx_keys[1].startswith('address-family') and
++                   ctx_keys[2].startswith('interface'))):
+                 self.save_contexts(ctx_keys, current_context_lines)
+                 log.debug('LINE %-50s: exiting old context, %-50s', line, ctx_keys)
+ 
+@@ -413,7 +434,8 @@ end
+                 ctx_keys = []
+                 current_context_lines = []
+ 
+-            elif line in ["exit-address-family", "exit", "exit-vnc"]:
++            # end here is from [mpls ldp, address-family, interface] mode
++            elif line in ["end", "exit-address-family", "exit", "exit-vnc"]:
+                 # if this exit is for address-family ipv4 unicast, ignore the pop
+                 if main_ctx_key:
+                     self.save_contexts(ctx_keys, current_context_lines)
+@@ -445,7 +467,11 @@ end
+             elif (line.startswith("address-family ") or
+                   line.startswith("vnc defaults") or
+                   line.startswith("vnc l2-group") or
+-                  line.startswith("vnc nve-group")):
++                  line.startswith("vnc nve-group") or
++                  (line.startswith("interface ") and
++                   len(ctx_keys) == 2 and
++                   ctx_keys[0].startswith('mpls ldp') and
++                   ctx_keys[1].startswith('address-family'))):
+                 main_ctx_key = []
+ 
+                 # Save old context first
+@@ -454,9 +480,11 @@ end
+                 main_ctx_key = copy.deepcopy(ctx_keys)
+                 log.debug('LINE %-50s: entering sub-context, append to ctx_keys', line)
+ 
+-                if line == "address-family ipv6":
++                if (line == "address-family ipv6" and
++                    ctx_keys[0].startswith('router bgp')):
+                     ctx_keys.append("address-family ipv6 unicast")
+-                elif line == "address-family ipv4":
++                elif (line == "address-family ipv4" and
++                      ctx_keys[0].startswith('router bgp')):
+                     ctx_keys.append("address-family ipv4 unicast")
+                 elif line == "address-family evpn":
+                     ctx_keys.append("address-family l2vpn evpn")
