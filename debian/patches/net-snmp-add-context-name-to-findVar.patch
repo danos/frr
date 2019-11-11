@@ -1,0 +1,18 @@
+From: Patrick Ruddy patrick.ruddy@intl.att.com>
+Date: Mon, 30 Sep 2019 15:59:07 +0100
+Subject: SNMP: add context name to findVar
+
+vyatta nrt-snmp version for findVar has an extra context name
+parameter. Add it here to avoid build issues.
+
+--- frr.orig/lib/agentx.c
++++ frr/lib/agentx.c
+@@ -297,7 +297,7 @@ int smux_trap(struct variable *vp, size_
+ 			cvp.findVar = vp[j].findVar;
+ 			/* Grab the result. */
+ 			val = cvp.findVar(&cvp, oid, &oid_len, 1, &val_len,
+-					  &wm);
++					  &wm, "");
+ 			if (!val)
+ 				break;
+ 			snmp_varlist_add_variable(&notification_vars, oid,

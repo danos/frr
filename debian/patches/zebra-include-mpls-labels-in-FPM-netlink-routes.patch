@@ -1,0 +1,105 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Wed, 10 Oct 2018 10:43:52 +0100
+Subject: zebra: include mpls labels in FPM netlink routes
+
+---
+ zebra/zebra_fpm_netlink.c | 53 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)
+
+--- frr.orig/zebra/zebra_fpm_netlink.c
++++ frr/zebra/zebra_fpm_netlink.c
+@@ -26,6 +26,9 @@
+ 
+ #ifdef HAVE_NETLINK
+ 
++#include <linux/lwtunnel.h>
++#include <linux/mpls_iptunnel.h>
++
+ #include "log.h"
+ #include "rib.h"
+ #include "vty.h"
+@@ -157,6 +160,8 @@ struct fpm_nh_encap_info_t {
+ typedef struct netlink_nh_info_t_ {
+ 	uint32_t if_index;
+ 	union g_addr *gateway;
++	unsigned int num_labels;
++	mpls_lse_t lse[MPLS_MAX_LABELS];
+ 
+ 	/*
+ 	 * Information from the struct nexthop from which this nh was
+@@ -246,6 +251,24 @@ static int netlink_route_info_add_nh(net
+ 		}
+ 	}
+ 
++	if (nexthop->nh_label && nexthop->nh_label->num_labels) {
++		struct mpls_label_stack *nh_label = nexthop->nh_label;
++		unsigned int num_labels = 0;
++
++		for (int i = 0; i < nh_label->num_labels; i++) {
++			if (nh_label->label[i] == MPLS_LABEL_IMPLICIT_NULL)
++				continue;
++			assert(num_labels < MPLS_MAX_LABELS);
++			nhi.lse[num_labels] =
++				mpls_lse_encode(nh_label->label[i], 0, 0, 0);
++			num_labels++;
++		}
++		if (num_labels) {
++			nhi.lse[num_labels - 1] |= htonl(1 << MPLS_LS_S_SHIFT);
++			nhi.num_labels = num_labels;
++		}
++	}
++
+ 	/*
+ 	 * We have a valid nhi. Copy the structure over to the route_info.
+ 	 */
+@@ -456,6 +479,19 @@ static int netlink_route_info_encode(net
+ 			}
+ 		}
+ 
++		if (nhi->num_labels) {
++			struct rtattr *nest;
++			uint16_t encap = LWTUNNEL_ENCAP_MPLS;
++
++			addattr_l(&req->n, in_buf_len, RTA_ENCAP_TYPE,
++				  &encap, sizeof(uint16_t));
++			nest = addattr_nest(&req->n, in_buf_len, RTA_ENCAP);
++			addattr_l(&req->n, in_buf_len, MPLS_IPTUNNEL_DST,
++				  nhi->lse,
++				  nhi->num_labels * sizeof(mpls_lse_t));
++			addattr_nest_end(&req->n, nest);
++		}
++
+ 		goto done;
+ 	}
+ 
+@@ -511,6 +547,21 @@ static int netlink_route_info_encode(net
+ 			}
+ 		}
+ 
++		if (nhi->num_labels) {
++			struct rtattr *nest;
++			uint16_t encap = LWTUNNEL_ENCAP_MPLS;
++			int len = rta->rta_len;
++
++			rta_addattr_l(rta, sizeof(buf), RTA_ENCAP_TYPE,
++				      &encap, sizeof(uint16_t));
++			nest = rta_nest(rta, sizeof(buf), RTA_ENCAP);
++			rta_addattr_l(rta, sizeof(buf), MPLS_IPTUNNEL_DST,
++				      nhi->lse, nhi->num_labels *
++				      sizeof(mpls_lse_t));
++			rta_nest_end(rta, nest);
++			rtnh->rtnh_len += rta->rta_len - len;
++		}
++
+ 		rtnh = RTNH_NEXT(rtnh);
+ 	}
+ 
+@@ -553,6 +604,8 @@ static void zfpm_log_route_info(netlink_
+ 			   nexthop_type_to_str(nhi->type),
+ 			   fpm_nh_encap_type_to_str(nhi->encap_info.encap_type)
+ 			   );
++		if (nhi->num_labels)
++			zfpm_debug("  Labels: %u", nhi->num_labels);
+ 	}
+ }
+ 

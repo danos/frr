@@ -1,8 +1,7 @@
 Source: frr
 Section: net
 Priority: optional
-Maintainer: David Lamparter <equinox-debian@diac24.net>
-Uploaders: FRRouting-dev <dev@lists.frrouting.org>
+Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
 Build-Depends:
  autotools-dev,
  bison,
@@ -21,7 +20,7 @@ Build-Depends:
  libpython3-dev,
  libreadline-dev,
  librtr-dev <!pkg.frr.nortrlib>,
- libsnmp-dev,
+ libsnmp-dev-vyatta,
  libssh-dev <!pkg.frr.nortrlib>,
  libsystemd-dev <!pkg.frr.nosystemd>,
  libyang-dev (>= 0.16.74),
@@ -42,7 +41,8 @@ Depends:
  ${misc:Depends},
  ${shlibs:Depends},
  iproute2 | iproute,
- logrotate (>= 3.2-11)
+ logrotate (>= 3.2-11),
+ lsb-base
 Pre-Depends: adduser
 Recommends: frr-pythontools
 Suggests: frr-doc

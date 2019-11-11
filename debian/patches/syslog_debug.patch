@@ -1,0 +1,18 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Wed, 1 Aug 2018 11:20:07 +0100
+Subject: syslog_debug
+
+---
+ lib/log.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- frr.orig/lib/log.c
++++ frr/lib/log.c
+@@ -842,6 +842,7 @@ void openzlog(const char *progname, cons
+ 	/* Set default logging levels. */
+ 	for (i = 0; i < array_size(zl->maxlvl); i++)
+ 		zl->maxlvl[i] = ZLOG_DISABLED;
++	zl->maxlvl[ZLOG_DEST_SYSLOG] = LOG_DEBUG;
+ 	zl->maxlvl[ZLOG_DEST_MONITOR] = LOG_DEBUG;
+ 	zl->default_lvl = LOG_DEBUG;
+ 

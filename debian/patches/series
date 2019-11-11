@@ -1,0 +1,12 @@
+net-snmp-add-context-name-to-findVar.patch
+frr-service.patch
+syslog_debug.patch
+ospf_cost.patch
+frr-reload-ldp.patch
+ospf_virtual_authenticate.patch
+0011-ospf6-decimal-area-format-in-interface-command.patch
+0012-frr-reload-exit-vrf-configuration-submode-when-apply.patch
+0013-frr-reload-only-inactive-VRFs-can-be-deleted.patch
+zebra-include-mpls-labels-in-FPM-netlink-routes.patch
+0016-ospf-set-display-format-for-range-command.patch
+0017-zebra-FPM-netlink-RTM_DELROUTE-set-RTN_UNICAST.patch

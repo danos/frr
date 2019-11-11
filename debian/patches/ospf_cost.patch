@@ -1,0 +1,32 @@
+From: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+Date: Wed, 1 Aug 2018 11:20:07 +0100
+Subject: ospf_cost
+
+---
+ ospfd/ospf_zebra.c | 2 ++
+ zebra/interface.c  | 3 +++
+ 2 files changed, 5 insertions(+)
+
+--- frr.orig/ospfd/ospf_zebra.c
++++ frr/ospfd/ospf_zebra.c
+@@ -224,6 +224,8 @@ static int ospf_interface_state_up(ZAPI_
+ 		zlog_debug("Zebra: Interface[%s] state change to up.",
+ 			   ifp->name);
+ 
++	ospf_if_recalculate_output_cost(ifp);
++
+ 	for (rn = route_top(IF_OIFS(ifp)); rn; rn = route_next(rn)) {
+ 		if ((oi = rn->info) == NULL)
+ 			continue;
+--- frr.orig/zebra/interface.c
++++ frr/zebra/interface.c
+@@ -918,6 +918,9 @@ void if_up(struct interface *ifp)
+ 	zif->up_count++;
+ 	quagga_timestamp(2, zif->up_last, sizeof(zif->up_last));
+ 
++	/* make sure interface speed is correct */
++	ifp->speed = kernel_get_speed(ifp);
++
+ 	/* Notify the protocol daemons. */
+ 	if (ifp->ptm_enable && (ifp->ptm_status == ZEBRA_PTM_STATUS_DOWN)) {
+ 		flog_warn(EC_ZEBRA_PTM_NOT_READY,

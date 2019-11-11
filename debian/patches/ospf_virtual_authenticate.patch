@@ -1,0 +1,32 @@
+From: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+Date: Wed, 26 Sep 2018 15:19:26 +0100
+Subject: ospf_virtual_authenticate
+
+---
+ ospfd/ospf_vty.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+--- frr.orig/ospfd/ospf_vty.c
++++ frr/ospfd/ospf_vty.c
+@@ -10168,6 +10168,21 @@ static int config_write_virtual_link(str
+ 			else
+ 				vty_out(vty, " area %s virtual-link %s\n", buf,
+ 					inet_ntoa(vl_data->vl_peer));
++			/* Authentication type */
++			if (OSPF_IF_PARAM(oi, auth_type) != OSPF_AUTH_NULL &&
++			    OSPF_IF_PARAM(oi, auth_type) != OSPF_AUTH_NOTSET) {
++				if (OSPF_IF_PARAM(oi, auth_type) ==
++						  OSPF_AUTH_SIMPLE)
++					vty_out(vty,
++						" area %s virtual-link %s authentication\n",
++						buf,
++						inet_ntoa(vl_data->vl_peer));
++				else
++					vty_out(vty,
++						" area %s virtual-link %s authentication message-digest\n",
++						buf,
++						inet_ntoa(vl_data->vl_peer));
++			}
+ 			/* Auth key */
+ 			if (IF_DEF_PARAMS(vl_data->vl_oi->ifp)->auth_simple[0]
+ 			    != '\0')

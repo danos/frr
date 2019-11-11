@@ -106,6 +106,11 @@ override_dh_installinit:
 override_dh_installsystemd:
 	dh_installsystemd -r
 
+override_dh_systemd_enable:
+	dh_systemd_enable -p frr --name=frr frr.service
+	dh_systemd_enable -p frr --name=vyatta-routing-frr-early vyatta-routing-frr-early.target
+	dh_systemd_enable -p frr --name=vyatta-routing-frr vyatta-routing-frr.target
+
 override_dh_makeshlibs:
 	dh_makeshlibs -n
 
