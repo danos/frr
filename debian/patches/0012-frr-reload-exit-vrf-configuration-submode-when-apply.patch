@@ -1,0 +1,29 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Tue, 30 Oct 2018 14:02:26 +0000
+Subject: frr-reload: exit vrf configuration submode when applying diffs
+
+Some commands are the same in vrf submode as they are in
+global mode, such as ip route.
+When frr-reload is adding global commands, they may be incorrectly
+applied to a vrf because it did not exit the vrf submode before
+applying them.
+
+Ensure vrf submode commands are terminated with exit-vrf.
+---
+ tools/frr-reload.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+--- frr.orig/tools/frr-reload.py
++++ frr/tools/frr-reload.py
+@@ -585,6 +585,11 @@ def line_for_vtysh_file(ctx_keys, line,
+         else:
+             cmd.append(indent + line)
+ 
++        # Ensure vrf context is terminated so that subsequent global commands
++        # are not incorrectly applied to the vrf
++        if ctx_keys[0].startswith('vrf '):
++            cmd.append('exit-vrf')
++
+     # If line is None then we are typically deleting an entire
+     # context ('no router ospf' for example)
+     else:

@@ -1,0 +1,16 @@
+frr-service.patch
+syslog_debug.patch
+ospf_cost.patch
+ospf_range_command.patch
+frr-reload-ldp.patch
+ospf_virtual_authenticate.patch
+0011-ospf6-decimal-area-format-in-interface-command.patch
+0012-frr-reload-exit-vrf-configuration-submode-when-apply.patch
+0013-frr-reload-only-inactive-VRFs-can-be-deleted.patch
+0014-bgp-avoid-crash-when-referencing-peer-groups.patch
+zebra-include-mpls-labels-in-FPM-netlink-routes.patch
+zebra-send-mpls-routes-to-FPM.patch
+0016-ospf-set-display-format-for-range-command.patch
+0015-zebra-Add-table_id-to-rib_table_info_t.patch
+0016-zebra-encode-table-correctly-in-FPM-netlink.patch
+0017-zebra-FPM-netlink-RTM_DELROUTE-set-RTN_UNICAST.patch

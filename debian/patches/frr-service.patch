@@ -1,0 +1,45 @@
+--- frr.orig/tools/frr.service
++++ frr/tools/frr.service
+@@ -1,6 +1,7 @@
+ [Unit]
+ Description=FRRouting
+-After=networking.service
++PartOf=vyatta-routing-frr.target
++Before=vyatta-routing-frr-early.target
+ OnFailure=heartbeat-failed@%n.service
+ 
+ [Service]
+--- frr.orig/tools/etc/frr/daemons
++++ frr/tools/etc/frr/daemons
+@@ -21,15 +21,15 @@
+ # The watchfrr daemon is always started. Per default in monitoring-only but
+ # that can be changed via /etc/frr/daemons.conf.
+ #
+-zebra=no
+-bgpd=no
+-ospfd=no
+-ospf6d=no
++zebra=yes
++bgpd=yes
++ospfd=yes
++ospf6d=yes
+ ripd=no
+ ripngd=no
+ isisd=no
+ pimd=no
+-ldpd=no
++ldpd=yes
+ nhrpd=no
+ eigrpd=no
+ babeld=no
+--- frr.orig/tools/etc/frr/daemons.conf
++++ frr/tools/etc/frr/daemons.conf
+@@ -4,7 +4,7 @@
+ # Check /etc/pam.d/frr if you intend to use "vtysh"!
+ #
+ vtysh_enable=yes
+-zebra_options="  -s 90000000 --daemon -A 127.0.0.1"
++zebra_options="  -s 90000000 --daemon -A 127.0.0.1 -M fpm"
+ bgpd_options="   --daemon -A 127.0.0.1"
+ ospfd_options="  --daemon -A 127.0.0.1"
+ ospf6d_options=" --daemon -A ::1"

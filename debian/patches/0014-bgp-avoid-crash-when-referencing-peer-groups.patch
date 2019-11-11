@@ -1,0 +1,26 @@
+From: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+Date: Mon, 5 Nov 2018 16:10:11 +0000
+Subject: bgp: avoid crash when referencing peer-groups
+
+if we are dealing with a normal neighbor then the peer->groups
+list is NULL, check if we need to skip peer group processing to
+avoid a null dereference.
+---
+ bgpd/bgpd.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+--- frr.orig/bgpd/bgpd.c
++++ frr/bgpd/bgpd.c
+@@ -6301,6 +6301,12 @@ int peer_maximum_prefix_unset(struct pee
+ 	peer->pmax_threshold[afi][safi] = 0;
+ 	peer->pmax_restart[afi][safi] = 0;
+ 
++	/* Check if handling a regular peer. */
++	if (!CHECK_FLAG(peer->sflags, PEER_STATUS_GROUP)) {
++			/* Skip peer-group mechanics for regular peers. */
++			return 0;
++	}
++
+ 	/*
+ 	 * Remove flags and configuration from all peer-group members, unless
+ 	 * they are explicitely overriding peer-group configuration.

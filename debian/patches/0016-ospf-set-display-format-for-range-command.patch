@@ -1,0 +1,23 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Mon, 5 Nov 2018 15:43:55 +0000
+Subject: ospf: set display format for range command
+
+If you configure an area range in decimal format, the running
+configuration displays it in dotted format.
+Call ospf_area_display_format_set() for area range command,
+as it is done for other variants.
+---
+ ospfd/ospf_vty.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+--- frr.orig/ospfd/ospf_vty.c
++++ frr/ospfd/ospf_vty.c
+@@ -684,6 +684,8 @@ DEFUN (ospf_area_range,
+ 	str2prefix_ipv4(argv[idx_ipv4_prefixlen]->arg, &p);
+ 
+ 	ospf_area_range_set(ospf, area_id, &p, OSPF_AREA_RANGE_ADVERTISE);
++	ospf_area_display_format_set(ospf, ospf_area_get(ospf, area_id),
++				     format);
+ 	if (argc > 5) {
+ 		cost = strtoul(argv[idx_cost]->arg, NULL, 10);
+ 		ospf_area_range_cost_set(ospf, area_id, &p, cost);

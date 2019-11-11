@@ -1,0 +1,26 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Tue, 30 Oct 2018 15:43:07 +0000
+Subject: frr-reload: only inactive VRFs can be deleted
+
+Attempting 'no vrf' to remove vrf config fails with error:
+% Only inactive VRFs can be deleted
+Handle the same way as interfaces: delete the submode commands
+rather than the vrf itself.
+---
+ tools/frr-reload.py | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+--- frr.orig/tools/frr-reload.py
++++ frr/tools/frr-reload.py
+@@ -976,6 +976,11 @@ def compare_context_objects(newconf, run
+                 for line in running_ctx.lines:
+                     lines_to_del.append((running_ctx_keys, line))
+ 
++            # We cannot do 'no vrf' as only inactive VRFs can be deleted
++            elif running_ctx_keys[0].startswith('vrf '):
++                for line in running_ctx.lines:
++                    lines_to_del.append((running_ctx_keys, line))
++
+             # If this is an address-family under 'router bgp' and we are already deleting the
+             # entire 'router bgp' context then ignore this sub-context
+             elif "router bgp" in running_ctx_keys[0] and len(running_ctx_keys) > 1 and delete_bgpd:
