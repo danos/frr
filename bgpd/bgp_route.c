@@ -12249,6 +12249,12 @@ DEFUN (bgp_damp_set,
 		max = 4 * half;
 	}
 
+	/*
+	 * These can't be 0 but our SA doesn't understand the
+	 * way our cli is constructed
+	 */
+	assert(reuse);
+	assert(half);
 	if (suppress < reuse) {
 		vty_out(vty,
 			"Suppress value cannot be less than reuse value \n");
