@@ -6,6 +6,11 @@ if PBRD
 noinst_LIBRARIES += pbrd/libpbr.a
 sbin_PROGRAMS += pbrd/pbrd
 dist_examples_DATA += pbrd/pbrd.conf.sample
+vtysh_scan += \
+	$(top_srcdir)/pbrd/pbr_vty.c \
+	$(top_srcdir)/pbrd/pbr_debug.c \
+	# end
+man8 += $(MANBUILD)/frr-pbrd.8
 endif
 
 pbrd_libpbr_a_SOURCES = \
@@ -15,6 +20,7 @@ pbrd_libpbr_a_SOURCES = \
 	pbrd/pbr_memory.c \
 	pbrd/pbr_nht.c \
 	pbrd/pbr_debug.c \
+	pbrd/pbr_vrf.c \
 	# end
 
 noinst_HEADERS += \
@@ -24,6 +30,7 @@ noinst_HEADERS += \
 	pbrd/pbr_vty.h \
 	pbrd/pbr_zebra.h \
 	pbrd/pbr_debug.h \
+	pbrd/pbr_vrf.h \
 	# end
 
 pbrd/pbr_vty_clippy.c: $(CLIPPY_DEPS)
@@ -33,5 +40,5 @@ pbrd/pbr_debug_clippy.c: $(CLIPPY_DEPS)
 pbrd/pbr_debug.$(OBJEXT): pbrd/pbr_debug_clippy.c
 
 pbrd_pbrd_SOURCES = pbrd/pbr_main.c
-pbrd_pbrd_LDADD = pbrd/libpbr.a lib/libfrr.la @LIBCAP@
+pbrd_pbrd_LDADD = pbrd/libpbr.a lib/libfrr.la $(LIBCAP)
 

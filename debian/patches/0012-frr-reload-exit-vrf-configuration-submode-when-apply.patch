@@ -15,7 +15,7 @@ Ensure vrf submode commands are terminated with exit-vrf.
 
 --- frr.orig/tools/frr-reload.py
 +++ frr/tools/frr-reload.py
-@@ -585,6 +585,11 @@ def line_for_vtysh_file(ctx_keys, line,
+@@ -640,6 +640,11 @@ def line_for_vtysh_file(ctx_keys, line,
          else:
              cmd.append(indent + line)
  

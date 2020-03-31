@@ -28,12 +28,32 @@
 #include "getopt.h"
 #include "module.h"
 #include "hook.h"
+#include "northbound.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* The following options disable specific command line options that
+ * are not applicable for a particular daemon.
+ */
 #define FRR_NO_PRIVSEP		(1 << 0)
 #define FRR_NO_TCPVTY		(1 << 1)
 #define FRR_LIMITED_CLI		(1 << 2)
-#define FRR_NO_CFG_PID_DRY		(1 << 3)
+#define FRR_NO_CFG_PID_DRY	(1 << 3)
 #define FRR_NO_ZCLIENT		(1 << 4)
+/* If FRR_DETACH_LATER is used, the daemon will keep its parent running
+ * until frr_detach() is called.  Normally "somedaemon -d" returns once the
+ * main event loop is reached in the daemon;  use this for extra startup bits.
+ *
+ * Does nothing if -d isn't used.
+ */
+#define FRR_DETACH_LATER	(1 << 5)
+
+enum frr_cli_mode {
+	FRR_CLI_CLASSIC = 0,
+	FRR_CLI_TRANSACTIONAL,
+};
 
 struct frr_daemon_info {
 	unsigned flags;
@@ -50,14 +70,21 @@ struct frr_daemon_info {
 	bool dryrun;
 	bool daemon_mode;
 	bool terminal;
+	enum frr_cli_mode cli_mode;
 
 	struct thread *read_in;
 	const char *config_file;
 	const char *backup_config_file;
 	const char *pid_file;
+#ifdef HAVE_SQLITE3
+	const char *db_file;
+#endif
 	const char *vty_path;
 	const char *module_path;
+
 	const char *pathspace;
+	bool zpathspace;
+
 	const char *early_logging;
 	const char *early_loglevel;
 
@@ -70,6 +97,11 @@ struct frr_daemon_info {
 	size_t n_signals;
 
 	struct zebra_privs_t *privs;
+
+	const struct frr_yang_module_info *const *yang_modules;
+	size_t n_yang_modules;
+
+	bool log_always;
 };
 
 /* execname is the daemon's executable (and pidfile and configfile) name,
@@ -91,6 +123,7 @@ struct frr_daemon_info {
 			  .version = FRR_VERSION, )                            \
 /* end */
 
+extern void frr_init_vtydir(void);
 extern void frr_preinit(struct frr_daemon_info *daemon, int argc, char **argv);
 extern void frr_opt_add(const char *optstr, const struct option *longopts,
 			const char *helpstr);
@@ -98,14 +131,14 @@ extern int frr_getopt(int argc, char *const argv[], int *longindex);
 extern void frr_help_exit(int status);
 
 extern struct thread_master *frr_init(void);
+extern const char *frr_get_progname(void);
+extern enum frr_cli_mode frr_get_cli_mode(void);
 
 DECLARE_HOOK(frr_late_init, (struct thread_master * tm), (tm))
 extern void frr_config_fork(void);
 
-extern void frr_vty_serv(void);
-
-/* note: contains call to frr_vty_serv() */
 extern void frr_run(struct thread_master *master);
+extern void frr_detach(void);
 
 extern bool frr_zclient_addr(struct sockaddr_storage *sa, socklen_t *sa_len,
 			     const char *path);
@@ -121,12 +154,16 @@ extern void frr_fini(void);
 extern char config_default[512];
 extern char frr_zclientpath[256];
 extern const char frr_sysconfdir[];
-extern const char frr_vtydir[];
+extern char frr_vtydir[256];
 extern const char frr_moduledir[];
 
 extern char frr_protoname[];
 extern char frr_protonameinst[];
 
 extern bool debug_memstats_at_exit;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _ZEBRA_FRR_H */

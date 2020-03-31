@@ -1,6 +1,10 @@
-frr: non-dev-pkg-with-shlib-symlink usr/lib/libfrrospfapiclient.so.0.0.0 usr/lib/libfrrospfapiclient.so
-frr: non-dev-pkg-with-shlib-symlink usr/lib/libfrr.so.0.0.0 usr/lib/libfrr.so
-frr: non-dev-pkg-with-shlib-symlink usr/lib/libfrrfpm_pb.so.0.0.0 usr/lib/libfrrfpm_pb.so
-frr: package-name-doesnt-match-sonames libfrr0 libfrrfpm-pb0 libfrrospfapiclient0
-frr: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/frr.service network-online.target
-frr: shared-lib-without-dependency-information usr/lib/libfrrfpm_pb.so.0.0.0
+# function names & co.
+frr binary: spelling-error-in-binary usr/lib/*/frr/libfrr.so.0.0.0 writen written
+frr binary: spelling-error-in-binary usr/lib/*/frr/libfrrospfapiclient.so.0.0.0 writen written
+frr binary: spelling-error-in-binary usr/lib/frr/ospfd writen written
+frr binary: spelling-error-in-binary usr/lib/frr/zebra writen written
+frr binary: spelling-error-in-binary usr/lib/frr/pimd writen written
+frr binary: spelling-error-in-binary usr/lib/frr/pimd iif if
+
+# personal name
+spelling-error-in-copyright Ang And

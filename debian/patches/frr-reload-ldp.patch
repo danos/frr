@@ -1,14 +1,18 @@
-From: George Wilkie <george.wilkie@intl.att.com>
-Date: Wed, 1 Aug 2018 11:20:07 +0100
-Subject: frr-reload-ldp
-
----
- tools/frr-reload.py | 40 ++++++++++++++++++++++++++++++++++------
- 1 file changed, 34 insertions(+), 6 deletions(-)
-
---- frr.orig/tools/frr-reload.py
-+++ frr/tools/frr-reload.py
-@@ -341,6 +341,21 @@ router ospf
+diff --git a/tools/frr-reload.py b/tools/frr-reload.py
+index 3e97635..a5301ad 100755
+--- a/tools/frr-reload.py
++++ b/tools/frr-reload.py
+@@ -204,7 +204,8 @@ class Config(object):
+             11.1.1.0/24. Ensure we don't do a needless operation for such
+             lines. IS-IS & OSPFv3 have no "network" support.
+         '''
+-        re_key_rt = re.match(r'(ip|ipv6)\s+route\s+([A-Fa-f:.0-9/]+)(.*)$', key[0])
++        re_key_rt = re.match(
++            r'(ip|ipv6)\s+route\s+([A-Fa-f:.0-9/]+)(.*)$', key[0])
+         if re_key_rt:
+             addr = re_key_rt.group(2)
+             if '/' in addr:
+@@ -371,6 +372,21 @@ router ospf
   timers throttle spf 0 50 5000
  !
  end
@@ -30,31 +34,43 @@ Subject: frr-reload-ldp
          '''
  
          # The code assumes that its working on the output from the "vtysh -m"
-@@ -372,7 +387,8 @@ end
-                                 "ip ",
-                                 "ipv6 ",
-                                 "log ",
--                                "mpls",
-+                                "mpls label ",
-+                                "mpls lsp ",
-                                 "no ",
-                                 "password ",
-                                 "ptm-enable",
-@@ -403,7 +419,12 @@ end
+@@ -438,13 +454,21 @@ end
+                 ctx_keys = [line, ]
+                 current_context_lines = []
+ 
+-                log.debug('LINE %-50s: entering new context, %-50s', line, ctx_keys)
++                log.debug('LINE %-50s: entering new context, %-50s',
++                          line, ctx_keys)
                  self.save_contexts(ctx_keys, current_context_lines)
                  new_ctx = True
  
--            elif line in ["end", "exit-vrf"]:
+-            elif line == "end":
 +            # end from [mpls ldp, address-family, interface] mode means pop
 +            elif (line in ["end", "exit-vrf"] and not
 +                  (len(ctx_keys) == 3 and
 +                   ctx_keys[0].startswith('mpls ldp') and
 +                   ctx_keys[1].startswith('address-family') and
 +                   ctx_keys[2].startswith('interface'))):
++
                  self.save_contexts(ctx_keys, current_context_lines)
-                 log.debug('LINE %-50s: exiting old context, %-50s', line, ctx_keys)
+-                log.debug('LINE %-50s: exiting old context, %-50s', line, ctx_keys)
++                log.debug('LINE %-50s: exiting old context, %-50s',
++                          line, ctx_keys)
  
-@@ -413,7 +434,8 @@ end
+                 # Start a new context
+                 new_ctx = True
+@@ -455,15 +479,17 @@ end
+             elif line == "exit-vrf":
+                 self.save_contexts(ctx_keys, current_context_lines)
+                 current_context_lines.append(line)
+-                log.debug('LINE %-50s: append to current_context_lines, %-50s', line, ctx_keys)
++                log.debug(
++                    'LINE %-50s: append to current_context_lines, %-50s', line, ctx_keys)
+ 
+-                #Start a new context
++                # Start a new context
+                 new_ctx = True
+                 main_ctx_key = []
                  ctx_keys = []
                  current_context_lines = []
  
@@ -64,30 +80,279 @@ Subject: frr-reload-ldp
                  # if this exit is for address-family ipv4 unicast, ignore the pop
                  if main_ctx_key:
                      self.save_contexts(ctx_keys, current_context_lines)
-@@ -445,7 +467,11 @@ end
-             elif (line.startswith("address-family ") or
+@@ -471,7 +497,8 @@ end
+                     # Start a new context
+                     ctx_keys = copy.deepcopy(main_ctx_key)
+                     current_context_lines = []
+-                    log.debug('LINE %-50s: popping from subcontext to ctx%-50s', line, ctx_keys)
++                    log.debug(
++                        'LINE %-50s: popping from subcontext to ctx%-50s', line, ctx_keys)
+ 
+             elif line in ["exit-vni", "exit-ldp-if"]:
+                 if sub_main_ctx_key:
+@@ -480,7 +507,8 @@ end
+                     # Start a new context
+                     ctx_keys = copy.deepcopy(sub_main_ctx_key)
+                     current_context_lines = []
+-                    log.debug('LINE %-50s: popping from sub-subcontext to ctx%-50s', line, ctx_keys)
++                    log.debug(
++                        'LINE %-50s: popping from sub-subcontext to ctx%-50s', line, ctx_keys)
+ 
+             elif new_ctx is True:
+                 if not main_ctx_key:
+@@ -496,7 +524,11 @@ end
                    line.startswith("vnc defaults") or
                    line.startswith("vnc l2-group") or
--                  line.startswith("vnc nve-group")):
-+                  line.startswith("vnc nve-group") or
+                   line.startswith("vnc nve-group") or
+-                  line.startswith("member pseudowire")):
++                  line.startswith("member pseudowire") or
 +                  (line.startswith("interface ") and
-+                   len(ctx_keys) == 2 and
-+                   ctx_keys[0].startswith('mpls ldp') and
-+                   ctx_keys[1].startswith('address-family'))):
++                    len(ctx_keys) == 2 and
++                    ctx_keys[0].startswith('mpls ldp') and
++                    ctx_keys[1].startswith('address-family'))):
                  main_ctx_key = []
  
                  # Save old context first
-@@ -454,9 +480,11 @@ end
-                 main_ctx_key = copy.deepcopy(ctx_keys)
-                 log.debug('LINE %-50s: entering sub-context, append to ctx_keys', line)
+@@ -535,13 +567,15 @@ end
+                 self.save_contexts(ctx_keys, current_context_lines)
+                 current_context_lines = []
+                 sub_main_ctx_key = copy.deepcopy(ctx_keys)
+-                log.debug('LINE %-50s: entering sub-sub-context, append to ctx_keys', line)
++                log.debug(
++                    'LINE %-50s: entering sub-sub-context, append to ctx_keys', line)
+                 ctx_keys.append(line)
  
--                if line == "address-family ipv6":
-+                if (line == "address-family ipv6" and
-+                    ctx_keys[0].startswith('router bgp')):
-                     ctx_keys.append("address-family ipv6 unicast")
--                elif line == "address-family ipv4":
-+                elif (line == "address-family ipv4" and
-+                      ctx_keys[0].startswith('router bgp')):
-                     ctx_keys.append("address-family ipv4 unicast")
-                 elif line == "address-family evpn":
-                     ctx_keys.append("address-family l2vpn evpn")
+             else:
+                 # Continuing in an existing context, add non-commented lines to it
+                 current_context_lines.append(line)
+-                log.debug('LINE %-50s: append to current_context_lines, %-50s', line, ctx_keys)
++                log.debug(
++                    'LINE %-50s: append to current_context_lines, %-50s', line, ctx_keys)
+ 
+         # Save the context of the last one
+         self.save_contexts(ctx_keys, current_context_lines)
+@@ -665,10 +699,12 @@ def get_normalized_ipv6_line(line):
+                 try:
+                     if 'ipaddress' not in sys.modules:
+                         v6word = IPNetwork(word)
+-                        norm_word = '%s/%s' % (v6word.network, v6word.prefixlen)
++                        norm_word = '%s/%s' % (v6word.network,
++                                               v6word.prefixlen)
+                     else:
+                         v6word = ip_network(word, strict=False)
+-                        norm_word = '%s/%s' % (str(v6word.network_address), v6word.prefixlen)
++                        norm_word = '%s/%s' % (str(v6word.network_address),
++                                               v6word.prefixlen)
+                 except ValueError:
+                     pass
+             if not norm_word:
+@@ -726,8 +762,10 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                 If so then chop the del line and the corresponding add lines
+                 '''
+ 
+-                re_swpx_int_peergroup = re.search('neighbor (\S+) interface peer-group (\S+)', line)
+-                re_swpx_int_v6only_peergroup = re.search('neighbor (\S+) interface v6only peer-group (\S+)', line)
++                re_swpx_int_peergroup = re.search(
++                    'neighbor (\S+) interface peer-group (\S+)', line)
++                re_swpx_int_v6only_peergroup = re.search(
++                    'neighbor (\S+) interface v6only peer-group (\S+)', line)
+ 
+                 if re_swpx_int_peergroup or re_swpx_int_v6only_peergroup:
+                     swpx_interface = None
+@@ -742,28 +780,34 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                         peergroup = re_swpx_int_v6only_peergroup.group(2)
+                         swpx_interface = "neighbor %s interface v6only" % swpx
+ 
+-                    swpx_peergroup = "neighbor %s peer-group %s" % (swpx, peergroup)
+-                    found_add_swpx_interface = line_exist(lines_to_add, ctx_keys, swpx_interface)
+-                    found_add_swpx_peergroup = line_exist(lines_to_add, ctx_keys, swpx_peergroup)
++                    swpx_peergroup = "neighbor %s peer-group %s" % (
++                        swpx, peergroup)
++                    found_add_swpx_interface = line_exist(
++                        lines_to_add, ctx_keys, swpx_interface)
++                    found_add_swpx_peergroup = line_exist(
++                        lines_to_add, ctx_keys, swpx_peergroup)
+                     tmp_ctx_keys = tuple(list(ctx_keys))
+ 
+                     if not found_add_swpx_peergroup:
+                         tmp_ctx_keys = list(ctx_keys)
+                         tmp_ctx_keys.append('address-family ipv4 unicast')
+                         tmp_ctx_keys = tuple(tmp_ctx_keys)
+-                        found_add_swpx_peergroup = line_exist(lines_to_add, tmp_ctx_keys, swpx_peergroup)
++                        found_add_swpx_peergroup = line_exist(
++                            lines_to_add, tmp_ctx_keys, swpx_peergroup)
+ 
+                         if not found_add_swpx_peergroup:
+                             tmp_ctx_keys = list(ctx_keys)
+                             tmp_ctx_keys.append('address-family ipv6 unicast')
+                             tmp_ctx_keys = tuple(tmp_ctx_keys)
+-                            found_add_swpx_peergroup = line_exist(lines_to_add, tmp_ctx_keys, swpx_peergroup)
++                            found_add_swpx_peergroup = line_exist(
++                                lines_to_add, tmp_ctx_keys, swpx_peergroup)
+ 
+                     if found_add_swpx_interface and found_add_swpx_peergroup:
+                         deleted = True
+                         lines_to_del_to_del.append((ctx_keys, line))
+                         lines_to_add_to_del.append((ctx_keys, swpx_interface))
+-                        lines_to_add_to_del.append((tmp_ctx_keys, swpx_peergroup))
++                        lines_to_add_to_del.append(
++                            (tmp_ctx_keys, swpx_peergroup))
+ 
+                 '''
+                 Changing the bfd timers on neighbors is allowed without doing
+@@ -810,8 +854,10 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+ 
+                 If so then chop the del line and the corresponding add lines
+                 '''
+-                re_swpx_int_remoteas = re.search('neighbor (\S+) interface remote-as (\S+)', line)
+-                re_swpx_int_v6only_remoteas = re.search('neighbor (\S+) interface v6only remote-as (\S+)', line)
++                re_swpx_int_remoteas = re.search(
++                    'neighbor (\S+) interface remote-as (\S+)', line)
++                re_swpx_int_v6only_remoteas = re.search(
++                    'neighbor (\S+) interface v6only remote-as (\S+)', line)
+ 
+                 if re_swpx_int_remoteas or re_swpx_int_v6only_remoteas:
+                     swpx_interface = None
+@@ -826,16 +872,20 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                         remoteas = re_swpx_int_v6only_remoteas.group(2)
+                         swpx_interface = "neighbor %s interface v6only" % swpx
+ 
+-                    swpx_remoteas = "neighbor %s remote-as %s" % (swpx, remoteas)
+-                    found_add_swpx_interface = line_exist(lines_to_add, ctx_keys, swpx_interface)
+-                    found_add_swpx_remoteas = line_exist(lines_to_add, ctx_keys, swpx_remoteas)
++                    swpx_remoteas = "neighbor %s remote-as %s" % (
++                        swpx, remoteas)
++                    found_add_swpx_interface = line_exist(
++                        lines_to_add, ctx_keys, swpx_interface)
++                    found_add_swpx_remoteas = line_exist(
++                        lines_to_add, ctx_keys, swpx_remoteas)
+                     tmp_ctx_keys = tuple(list(ctx_keys))
+ 
+                     if found_add_swpx_interface and found_add_swpx_remoteas:
+                         deleted = True
+                         lines_to_del_to_del.append((ctx_keys, line))
+                         lines_to_add_to_del.append((ctx_keys, swpx_interface))
+-                        lines_to_add_to_del.append((tmp_ctx_keys, swpx_remoteas))
++                        lines_to_add_to_del.append(
++                            (tmp_ctx_keys, swpx_remoteas))
+ 
+             '''
+             We made the 'bgp bestpath as-path multipath-relax' command
+@@ -847,9 +897,11 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+             resets.
+             '''
+             if 'multipath-relax' in line:
+-                re_asrelax_new = re.search('^bgp\s+bestpath\s+as-path\s+multipath-relax$', line)
++                re_asrelax_new = re.search(
++                    '^bgp\s+bestpath\s+as-path\s+multipath-relax$', line)
+                 old_asrelax_cmd = 'bgp bestpath as-path multipath-relax no-as-set'
+-                found_asrelax_old = line_exist(lines_to_add, ctx_keys, old_asrelax_cmd)
++                found_asrelax_old = line_exist(
++                    lines_to_add, ctx_keys, old_asrelax_cmd)
+ 
+                 if re_asrelax_new and found_asrelax_old:
+                     deleted = True
+@@ -863,7 +915,8 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+             is issued.
+             '''
+             if line.startswith('table-map'):
+-                found_table_map = line_exist(lines_to_add, ctx_keys, 'table-map', False)
++                found_table_map = line_exist(
++                    lines_to_add, ctx_keys, 'table-map', False)
+ 
+                 if found_table_map:
+                     lines_to_del_to_del.append((ctx_keys, line))
+@@ -880,7 +933,8 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+             table_num = re_importtbl.group(1)
+             for ctx in lines_to_add:
+                 if ctx[0][0].startswith('ip import-table %s distance' % table_num):
+-                    lines_to_del_to_del.append((('ip import-table %s' % table_num,), None))
++                    lines_to_del_to_del.append(
++                        (('ip import-table %s' % table_num,), None))
+                     lines_to_add_to_del.append((ctx[0], None))
+ 
+         '''
+@@ -906,9 +960,10 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+         if (len(ctx_keys) == 3 and
+             ctx_keys[0].startswith('router bgp') and
+             ctx_keys[1] == 'address-family l2vpn evpn' and
+-            ctx_keys[2].startswith('vni')):
++                ctx_keys[2].startswith('vni')):
+ 
+-            re_route_target = re.search('^route-target import (.*)$', line) if line is not None else False
++            re_route_target = re.search(
++                '^route-target import (.*)$', line) if line is not None else False
+ 
+             if re_route_target:
+                 rt = re_route_target.group(1).strip()
+@@ -916,8 +971,10 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                 route_target_export_line = "route-target export %s" % rt
+                 route_target_both_line = "route-target both %s" % rt
+ 
+-                found_route_target_export_line = line_exist(lines_to_del, ctx_keys, route_target_export_line)
+-                found_route_target_both_line = line_exist(lines_to_add, ctx_keys, route_target_both_line)
++                found_route_target_export_line = line_exist(
++                    lines_to_del, ctx_keys, route_target_export_line)
++                found_route_target_both_line = line_exist(
++                    lines_to_add, ctx_keys, route_target_both_line)
+ 
+                 '''
+                 If the running configs has
+@@ -930,9 +987,12 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                 then we can ignore deleting the import/export and ignore adding the 'both'
+                 '''
+                 if found_route_target_export_line and found_route_target_both_line:
+-                    lines_to_del_to_del.append((ctx_keys, route_target_import_line))
+-                    lines_to_del_to_del.append((ctx_keys, route_target_export_line))
+-                    lines_to_add_to_del.append((ctx_keys, route_target_both_line))
++                    lines_to_del_to_del.append(
++                        (ctx_keys, route_target_import_line))
++                    lines_to_del_to_del.append(
++                        (ctx_keys, route_target_export_line))
++                    lines_to_add_to_del.append(
++                        (ctx_keys, route_target_both_line))
+ 
+         if not deleted:
+             found_add_line = line_exist(lines_to_add, ctx_keys, line)
+@@ -962,7 +1022,8 @@ def ignore_delete_re_add_lines(lines_to_add, lines_to_del):
+                     tmp_ctx_keys = list(ctx_keys)[:-1]
+                     tmp_ctx_keys = tuple(tmp_ctx_keys)
+ 
+-                    found_add_line = line_exist(lines_to_add, tmp_ctx_keys, line)
++                    found_add_line = line_exist(
++                        lines_to_add, tmp_ctx_keys, line)
+ 
+                     if found_add_line:
+                         lines_to_del_to_del.append((ctx_keys, line))
+@@ -994,7 +1055,7 @@ def ignore_unconfigurable_lines(lines_to_add, lines_to_del):
+             # This is technically "no"able but if we did so frr-reload would
+             # stop working so do not let the user shoot themselves in the foot
+             # by removing this.
+-            ctx_keys[0].startswith('service integrated-vtysh-config')):
++                ctx_keys[0].startswith('service integrated-vtysh-config')):
+ 
+             log.info("(%s, %s) cannot be removed" % (pformat(ctx_keys), line))
+             lines_to_del_to_del.append((ctx_keys, line))
+@@ -1147,8 +1208,10 @@ if __name__ == '__main__':
+                             format='%(asctime)s %(levelname)5s: %(message)s')
+ 
+         # Color the errors and warnings in red
+-        logging.addLevelName(logging.ERROR, "\033[91m  %s\033[0m" % logging.getLevelName(logging.ERROR))
+-        logging.addLevelName(logging.WARNING, "\033[91m%s\033[0m" % logging.getLevelName(logging.WARNING))
++        logging.addLevelName(
++            logging.ERROR, "\033[91m  %s\033[0m" % logging.getLevelName(logging.ERROR))
++        logging.addLevelName(
++            logging.WARNING, "\033[91m%s\033[0m" % logging.getLevelName(logging.WARNING))
+ 
+     elif args.reload:
+         if not os.path.isdir('/var/log/frr/'):
+@@ -1375,7 +1438,8 @@ if __name__ == '__main__':
+                             last_arg = cmd[-1].split(' ')
+ 
+                             if len(last_arg) <= 2:
+-                                log.error('"%s" we failed to remove this command', original_cmd)
++                                log.error(
++                                    '"%s" we failed to remove this command', original_cmd)
+                                 break
+ 
+                             new_last_arg = last_arg[0:-1]

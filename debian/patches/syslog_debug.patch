@@ -8,7 +8,7 @@ Subject: syslog_debug
 
 --- frr.orig/lib/log.c
 +++ frr/lib/log.c
-@@ -759,6 +759,7 @@ void openzlog(const char *progname, cons
+@@ -842,6 +842,7 @@ void openzlog(const char *progname, cons
  	/* Set default logging levels. */
  	for (i = 0; i < array_size(zl->maxlvl); i++)
  		zl->maxlvl[i] = ZLOG_DISABLED;

@@ -1,11 +1,40 @@
 Source: frr
 Section: net
 Priority: optional
-Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
-XSBC-Original-Maintainer: <maintainers@frrouting.org>
-Build-Depends: debhelper (>= 7.0.50~), libncurses5-dev, libreadline-dev, texlive-latex-base, texlive-generic-recommended, libpam0g-dev | libpam-dev, libcap-dev, texinfo (>= 4.7), autotools-dev, libpcre3-dev, gawk, chrpath, libsnmp-dev, git, dh-autoreconf, libjson-c-dev, libjson-c2 | libjson-c3, dh-systemd, libsystemd-dev, bison, flex, libc-ares-dev, pkg-config, python (>= 2.7), python-ipaddr, python-sphinx, python3-dev, install-info
-Standards-Version: 3.9.6
-Homepage: http://www.frrouting.org/
+Maintainer: David Lamparter <equinox-debian@diac24.net>
+Uploaders: FRRouting-dev <dev@lists.frrouting.org>
+Build-Depends:
+ autotools-dev,
+ bison,
+ chrpath,
+ debhelper (>= 9),
+ debhelper (>= 9.20160709) <!pkg.frr.nosystemd> | dh-systemd <!pkg.frr.nosystemd>,
+ dh-autoreconf,
+ flex,
+ gawk,
+ install-info,
+ libc-ares-dev,
+ libcap-dev,
+ libjson-c-dev | libjson0-dev,
+ libpam0g-dev | libpam-dev,
+ libpcre3-dev,
+ libpython3-dev,
+ libreadline-dev,
+ librtr-dev <!pkg.frr.nortrlib>,
+ libsnmp-dev,
+ libssh-dev <!pkg.frr.nortrlib>,
+ libsystemd-dev <!pkg.frr.nosystemd>,
+ libyang-dev (>= 0.16.74),
+ pkg-config,
+ python3,
+ python3-dev,
+ python3-sphinx,
+ python3-pytest <!nocheck>,
+ texinfo (>= 4.7)
+Standards-Version: 4.2.1
+Homepage: https://www.frrouting.org/
+Vcs-Browser: https://github.com/FRRouting/frr/
+Vcs-Git: https://github.com/FRRouting/frr.git
 
 Package: frr
 Architecture: linux-any
@@ -13,46 +42,90 @@ Depends:
  ${misc:Depends},
  ${shlibs:Depends},
  iproute2 | iproute,
- logrotate (>= 3.2-11),
- lsb-base
+ logrotate (>= 3.2-11)
 Pre-Depends: adduser
-Conflicts: zebra, zebra-pj, quagga
+Recommends: frr-pythontools
+Suggests: frr-doc
+Conflicts:
+ zebra,
+ zebra-pj,
+ pimd,
+ quagga,
+ quagga-bgpd,
+ quagga-core,
+ quagga-isisd,
+ quagga-ospf6d,
+ quagga-ospfd,
+ quagga-pimd,
+ quagga-ripd,
+ quagga-ripngd
 Replaces: zebra, zebra-pj
-Suggests: snmpd
-Description: BGP/OSPF/RIP/RIPng/ISIS/PIM/LDP routing daemon forked from Quagga
- FRR is free software which manages TCP/IP based routing protocols.
- It supports BGP4, BGP4+, OSPFv2, OSPFv3, IS-IS, RIPv1, RIPv2, RIPng,
- PIM and LDP as well as the IPv6 versions of these.
+Description: FRRouting suite of internet protocols (BGP, OSPF, IS-IS, ...)
+ FRRouting implements the routing protocols commonly used in the
+ internet and private networks to exchange information between routers.
+ Both IP and IPv6 are supported, as are BGP, OSPF, IS-IS, BABEL, EIGRP,
+ RIP, LDP, BFD, PIM and NHRP protocols.
  .
- FRR is a fork of Quagga with an open community model. The main git
- lives on https://github.com/frrouting/frr.git
+ These protocols are used to turn your system into a dynamic router,
+ exchanging information about available connections with other routers
+ in a standards-compliant way.  The actual packet forwarding
+ functionality is provided by the OS kernel.
+ .
+ FRRouting is a fork of Quagga with an open community model. The main
+ git lives on https://github.com/frrouting/frr.git and the project name
+ is commonly abbreviated as "FRR."
 
-Package: frr-dbg
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, frr (= ${binary:Version})
-Priority: extra
-Section: debug
-Description: BGP/OSPF/RIP/RIPng/ISIS/PIM/LDP routing daemon (debug symbols)
- This package provides debugging symbols for all binary packages built
- from frr source package. It's highly recommended to have this package
- installed before reporting any FRR crashes to either FRR developers or
- Debian package maintainers.
+Package: frr-snmp
+Architecture: linux-any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ frr (= ${binary:Version})
+Recommends: snmpd
+Description: FRRouting suite - SNMP support
+ Adds SNMP support to FRR's daemons by attaching to net-snmp's snmpd
+ through the AgentX protocol.  Provides read-only access to current
+ routing state through standard SNMP MIBs.
+
+Package: frr-rpki-rtrlib
+Architecture: linux-any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+ frr (= ${binary:Version})
+Description: FRRouting suite - BGP RPKI support (rtrlib)
+ Adds RPKI support to FRR's bgpd, allowing validation of BGP routes
+ against cryptographic information stored in WHOIS databases.  This is
+ used to prevent hijacking of networks on the wider internet.  It is only
+ relevant to internet service providers using their own autonomous system
+ number.
+Build-Profiles: <!pkg.frr.nortrlib>
 
 Package: frr-doc
-Section: net
+Section: doc
 Architecture: all
-Depends: ${misc:Depends}
+Depends:
+ ${misc:Depends},
+ libjs-jquery,
+ libjs-underscore
 Suggests: frr
-Description: BGP/OSPF/RIP/RIPng/ISIS/PIM/LDP routing daemon (documentation)
- This package includes info files for frr, a free software which manages
- TCP/IP based routing protocols.  It supports BGP4, BGP4+, OSPFv2, OSPFv3,
- IS-IS, RIPv1, RIPv2, RIPng, PIM and LDP as well as the IPv6 versions of these.
+Conflicts: quagga-doc
+Description: FRRouting suite - user manual
+ This provides the FRR user manual in HTML form.  This is the official
+ manual maintained as part of the package and is also available online
+ at https://frrouting.readthedocs.io/
 
 Package: frr-pythontools
-Section: net
 Architecture: all
-Depends: ${misc:Depends}, frr (>= ${binary:Version}), python (>= 2.7), python-ipaddr
-Description: BGP/OSPF/RIP/RIPng/ISIS/PIM/LDP routing daemon (Python Tools)
- This package includes info files for frr, a free software which manages
- TCP/IP based routing protocols.  It supports BGP4, BGP4+, OSPFv2, OSPFv3,
- IS-IS, RIPv1, RIPv2, RIPng, PIM and LDP as well as the IPv6 versions of these.
+Depends:
+ ${misc:Depends},
+ frr (<< ${source:Upstream-Version}.0-~),
+ frr (>= ${source:Version}~),
+ python3:any
+Description: FRRouting suite - Python tools
+ The FRRouting suite uses a small Python tool to provide configuration
+ reload functionality, particularly useful when the interactive configuration
+ shell is not used.
+ .
+ Without this package installed, "reload" (as a systemd or init script
+ invocation) will not work for the FRR daemons.

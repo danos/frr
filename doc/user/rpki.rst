@@ -67,17 +67,17 @@ Enabling RPKI
    to configure at least one reachable cache server. See section
    :ref:`configuring-rpki-rtr-cache-servers` for configuring a cache server.
 
-.. index:: RPKI and daemons.conf
+.. index:: RPKI and daemons
 
 When first installing FRR with RPKI support from the pre-packaged binaries.
 Remember to add ``-M rpki`` to the variable ``bgpd_options`` in
-:file:`/etc/frr/daemons.conf` , like so::
+:file:`/etc/frr/daemons` , like so::
 
-   bgpd_options="   --daemon -A 127.0.0.1 -M rpki"
+   bgpd_options="   -A 127.0.0.1 -M rpki"
 
 instead of the default setting::
 
-   bgpd_options="   --daemon -A 127.0.0.1"
+   bgpd_options="   -A 127.0.0.1"
 
 Otherwise you will encounter an error when trying to enter RPKI
 configuration mode due to the ``rpki`` module not being loaded when the BGP
@@ -111,31 +111,6 @@ The following commands are independent of a specific cache server.
    again for updated data.
 
    The default value is 300 seconds.
-
-.. index:: rpki timeout <1-4,294,967,296>
-.. clicmd:: rpki timeout <1-4,294,967,296>
-
-.. index:: no rpki timeout
-.. clicmd:: no rpki timeout
-
-   Set the number of seconds the router waits for the cache reply. If the cache
-   server is not replying within this time period, the router deletes all
-   received prefix records from the prefix table.
-
-   The default value is 600 seconds.
-
-.. index:: rpki initial-synchronisation-timeout <1-4,294,967,296>
-.. clicmd:: rpki initial-synchronisation-timeout <1-4,294,967,296>
-
-.. index:: no rpki initial-synchronisation-timeout
-.. clicmd:: no rpki initial-synchronisation-timeout
-
-   Set the number of seconds until the first synchronization with the cache
-   server needs to be completed. If the timeout expires, BGP routing is started
-   without RPKI. The router will try to establish the cache server connection in
-   the background.
-
-   The default value is 30 seconds.
 
    The following commands configure one or multiple cache servers.
 
@@ -187,10 +162,6 @@ Validating BGP Updates
 
     Create a clause for a route map to match prefixes with the specified RPKI
     state.
-
-    **Note** that the matching of invalid prefixes requires that invalid
-    prefixes are considered for best path selection, i.e.,
-    ``bgp bestpath prefix-validate disallow-invalid`` is not enabled.
 
     In the following example, the router prefers valid routes over invalid
     prefixes because invalid routes have a lower local preference.

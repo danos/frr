@@ -65,7 +65,7 @@ to be configured as they can be for other area commands.
  
 --- frr.orig/ospf6d/ospf6_top.c
 +++ frr/ospf6d/ospf6_top.c
-@@ -653,11 +653,12 @@ DEFUN (no_ospf6_distance_source,
+@@ -640,11 +640,12 @@ DEFUN (no_ospf6_distance_source,
  
  DEFUN (ospf6_interface_area,
         ospf6_interface_area_cmd,
@@ -79,15 +79,15 @@ to be configured as they can be for other area commands.
        )
  {
  	VTY_DECLVAR_CONTEXT(ospf6, o);
-@@ -666,7 +667,6 @@ DEFUN (ospf6_interface_area,
+@@ -653,7 +654,6 @@ DEFUN (ospf6_interface_area,
  	struct ospf6_area *oa;
  	struct ospf6_interface *oi;
  	struct interface *ifp;
 -	uint32_t area_id;
  
  	/* find/create ospf6 interface */
- 	ifp = if_get_by_name(argv[idx_ifname]->arg, VRF_DEFAULT, 0);
-@@ -680,15 +680,7 @@ DEFUN (ospf6_interface_area,
+ 	ifp = if_get_by_name(argv[idx_ifname]->arg, VRF_DEFAULT);
+@@ -667,15 +667,7 @@ DEFUN (ospf6_interface_area,
  	}
  
  	/* parse Area-ID */
@@ -104,7 +104,7 @@ to be configured as they can be for other area commands.
  
  	/* attach interface to area */
  	listnode_add(oa->if_list, oi); /* sort ?? */
-@@ -712,12 +704,13 @@ DEFUN (ospf6_interface_area,
+@@ -699,12 +691,13 @@ DEFUN (ospf6_interface_area,
  
  DEFUN (no_ospf6_interface_area,
         no_ospf6_interface_area_cmd,
@@ -119,7 +119,7 @@ to be configured as they can be for other area commands.
         )
  {
  	int idx_ifname = 2;
-@@ -726,6 +719,8 @@ DEFUN (no_ospf6_interface_area,
+@@ -713,6 +706,8 @@ DEFUN (no_ospf6_interface_area,
  	struct ospf6_area *oa;
  	struct interface *ifp;
  	uint32_t area_id;
@@ -128,7 +128,7 @@ to be configured as they can be for other area commands.
  
  	ifp = if_lookup_by_name(argv[idx_ifname]->arg, VRF_DEFAULT);
  	if (ifp == NULL) {
-@@ -740,9 +735,10 @@ DEFUN (no_ospf6_interface_area,
+@@ -727,9 +722,10 @@ DEFUN (no_ospf6_interface_area,
  	}
  
  	/* parse Area-ID */

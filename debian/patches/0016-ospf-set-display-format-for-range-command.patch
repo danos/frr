@@ -12,7 +12,7 @@ as it is done for other variants.
 
 --- frr.orig/ospfd/ospf_vty.c
 +++ frr/ospfd/ospf_vty.c
-@@ -684,6 +684,8 @@ DEFUN (ospf_area_range,
+@@ -689,6 +689,8 @@ DEFUN (ospf_area_range,
  	str2prefix_ipv4(argv[idx_ipv4_prefixlen]->arg, &p);
  
  	ospf_area_range_set(ospf, area_id, &p, OSPF_AREA_RANGE_ADVERTISE);

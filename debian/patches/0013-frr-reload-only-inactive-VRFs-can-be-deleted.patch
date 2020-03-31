@@ -12,7 +12,7 @@ rather than the vrf itself.
 
 --- frr.orig/tools/frr-reload.py
 +++ frr/tools/frr-reload.py
-@@ -976,6 +976,11 @@ def compare_context_objects(newconf, run
+@@ -1086,6 +1086,11 @@ def compare_context_objects(newconf, run
                  for line in running_ctx.lines:
                      lines_to_del.append((running_ctx_keys, line))
  

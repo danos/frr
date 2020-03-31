@@ -25,6 +25,10 @@
 #include <zebra.h>
 #include <arpa/inet.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef MPLS_LABEL_MAX
 #undef MPLS_LABEL_MAX
 #endif
@@ -43,6 +47,7 @@
 #define MPLS_LABEL_OAM_ALERT           14      /* [RFC3429] */
 #define MPLS_LABEL_EXTENSION           15      /* [RFC7274] */
 #define MPLS_LABEL_MAX                 1048575
+#define MPLS_LABEL_VALUE_MASK          0x000FFFFF
 #define MPLS_LABEL_NONE                0xFFFFFFFF /* for internal use only */
 
 /* Minimum and maximum label values */
@@ -50,6 +55,7 @@
 #define MPLS_LABEL_RESERVED_MAX            15
 #define MPLS_LABEL_UNRESERVED_MIN          16
 #define MPLS_LABEL_UNRESERVED_MAX          1048575
+#define MPLS_LABEL_BASE_ANY                0
 
 /* Default min and max SRGB label range */
 /* Even if the SRGB allows to manage different Label space between routers,
@@ -120,7 +126,7 @@ enum lsp_types_t {
 	ZEBRA_LSP_STATIC = 1, /* Static LSP. */
 	ZEBRA_LSP_LDP = 2,    /* LDP LSP. */
 	ZEBRA_LSP_BGP = 3,    /* BGP LSP. */
-	ZEBRA_LSP_SR = 4,     /* Segment Routing LSP. */
+	ZEBRA_LSP_OSPF_SR = 4,/* OSPF Segment Routing LSP. */
 	ZEBRA_LSP_SHARP = 5,  /* Identifier for test protocol */
 };
 
@@ -171,7 +177,7 @@ static inline char *label2str(mpls_label_t label, char *buf, size_t len)
 		strlcpy(buf, "Router Alert", len);
 		return (buf);
 	case MPLS_LABEL_IPV6_EXPLICIT_NULL:
-		strlcpy(buf, "IPv6 Explict Null", len);
+		strlcpy(buf, "IPv6 Explicit Null", len);
 		return (buf);
 	case MPLS_LABEL_IMPLICIT_NULL:
 		strlcpy(buf, "implicit-null", len);
@@ -208,5 +214,9 @@ int mpls_str2label(const char *label_str, uint8_t *num_labels,
  */
 char *mpls_label2str(uint8_t num_labels, mpls_label_t *labels, char *buf,
 		     int len, int pretty);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

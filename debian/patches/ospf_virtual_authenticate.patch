@@ -8,7 +8,7 @@ Subject: ospf_virtual_authenticate
 
 --- frr.orig/ospfd/ospf_vty.c
 +++ frr/ospfd/ospf_vty.c
-@@ -10025,6 +10025,21 @@ static int config_write_virtual_link(str
+@@ -10168,6 +10168,21 @@ static int config_write_virtual_link(str
  			else
  				vty_out(vty, " area %s virtual-link %s\n", buf,
  					inet_ntoa(vl_data->vl_peer));

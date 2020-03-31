@@ -18,7 +18,7 @@ Subject: zebra: include mpls labels in FPM netlink routes
  #include "log.h"
  #include "rib.h"
  #include "vty.h"
-@@ -109,6 +112,8 @@ static size_t af_addr_size(uint8_t af)
+@@ -157,6 +160,8 @@ struct fpm_nh_encap_info_t {
  typedef struct netlink_nh_info_t_ {
  	uint32_t if_index;
  	union g_addr *gateway;
@@ -27,9 +27,9 @@ Subject: zebra: include mpls labels in FPM netlink routes
  
  	/*
  	 * Information from the struct nexthop from which this nh was
-@@ -184,6 +189,24 @@ static int netlink_route_info_add_nh(net
- 	if (!nhi.gateway && nhi.if_index == 0)
- 		return 0;
+@@ -246,6 +251,24 @@ static int netlink_route_info_add_nh(net
+ 		}
+ 	}
  
 +	if (nexthop->nh_label && nexthop->nh_label->num_labels) {
 +		struct mpls_label_stack *nh_label = nexthop->nh_label;
@@ -52,8 +52,8 @@ Subject: zebra: include mpls labels in FPM netlink routes
  	/*
  	 * We have a valid nhi. Copy the structure over to the route_info.
  	 */
-@@ -354,6 +377,19 @@ static int netlink_route_info_encode(net
- 			addattr32(&req->n, in_buf_len, RTA_OIF, nhi->if_index);
+@@ -456,6 +479,19 @@ static int netlink_route_info_encode(net
+ 			}
  		}
  
 +		if (nhi->num_labels) {
@@ -72,8 +72,8 @@ Subject: zebra: include mpls labels in FPM netlink routes
  		goto done;
  	}
  
-@@ -387,6 +423,21 @@ static int netlink_route_info_encode(net
- 			rtnh->rtnh_ifindex = nhi->if_index;
+@@ -511,6 +547,21 @@ static int netlink_route_info_encode(net
+ 			}
  		}
  
 +		if (nhi->num_labels) {
@@ -94,10 +94,10 @@ Subject: zebra: include mpls labels in FPM netlink routes
  		rtnh = RTNH_NEXT(rtnh);
  	}
  
-@@ -427,6 +478,8 @@ static void zfpm_log_route_info(netlink_
- 			   nhi->if_index, addr_to_a(ri->af, nhi->gateway),
- 			   nhi->recursive ? "yes" : "no",
- 			   nexthop_type_to_str(nhi->type));
+@@ -553,6 +604,8 @@ static void zfpm_log_route_info(netlink_
+ 			   nexthop_type_to_str(nhi->type),
+ 			   fpm_nh_encap_type_to_str(nhi->encap_info.encap_type)
+ 			   );
 +		if (nhi->num_labels)
 +			zfpm_debug("  Labels: %u", nhi->num_labels);
  	}
