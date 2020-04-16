@@ -1,0 +1,27 @@
+diff --git a/zebra/interface.c b/zebra/interface.c
+index bcb833b..1064bfa 100644
+--- a/zebra/interface.c
++++ b/zebra/interface.c
+@@ -1019,11 +1019,22 @@ void if_up(struct interface *ifp)
+ 	struct zebra_if *zif;
+ 	struct interface *link_if;
+ 	struct zebra_vrf *zvrf = vrf_info_lookup(ifp->vrf_id);
++	int error = 0;
+ 
+ 	zif = ifp->info;
+ 	zif->up_count++;
+ 	quagga_timestamp(2, zif->up_last, sizeof(zif->up_last));
+ 
++	/* make sure interface speed is correct */
++	ifp->speed = kernel_get_speed(ifp, &error);
++
++	/* error may indicate vrf not available or
++	 * interfaces not available.
++	 * note that loopback & virtual interfaces can return 0 as speed
++	 */
++	if (error < 0)
++		return 1;
++
+ 	/* Notify the protocol daemons. */
+ 	if (ifp->ptm_enable && (ifp->ptm_status == ZEBRA_PTM_STATUS_DOWN)) {
+ 		flog_warn(EC_ZEBRA_PTM_NOT_READY,
