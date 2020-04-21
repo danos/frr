@@ -1,0 +1,25 @@
+From: Kaushik Nath <kaushik@niralnetworks.com>
+Date: Sat May 30 15:13:49 IST 2020
+Subject: frr load running configuration 
+ 
+---
+tools/frr-reload.py | 6 +++---
+1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/tools/frr-reload.py b/tools/frr-reload.py
+index 3e97635..3e591bf 100755
+--- a/tools/frr-reload.py
++++ b/tools/frr-reload.py
+@@ -153,9 +153,9 @@ class Config(object):
+         log.info('Loading Config object from vtysh show running')
+ 
+         try:
+-            config_text = subprocess.check_output(
+-                bindir + "/vtysh --config_dir " + confdir + " -c 'show run " + daemon + "' | /usr/bin/tail -n +4 | " + bindir + "/vtysh --config_dir " + confdir + " -m -f -",
+-                shell=True)
++            config_text = subprocess.check_output(bindir + "/vtysh -c 'show run ' | /usr/bin/tail -n +4 | " + bindir + "/vtysh -m -f -",
++                shell=True, stderr=subprocess.STDOUT)
++
+         except subprocess.CalledProcessError as e:
+             ve = VtyshMarkException(e)
+             ve.output = e.output
