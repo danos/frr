@@ -1,0 +1,1353 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Fri, 12 Oct 2018 18:44:43 +0100
+Subject: zebra: send mpls routes to FPM
+
+This involves queuing LSPs for FPM updates,
+netlink encoding of LSPs (proto buffers not done),
+deferred deletion of LSPs when queued for update.
+---
+ zebra/rt_netlink.c        |  62 ------
+ zebra/rt_netlink.h        |  62 ++++++
+ zebra/zebra_fpm.c         | 482 ++++++++++++++++++++++++++++++++++++++++------
+ zebra/zebra_fpm_netlink.c | 171 ++++++++++++++--
+ zebra/zebra_fpm_private.h |   2 +
+ zebra/zebra_mpls.c        | 105 +++++-----
+ zebra/zebra_mpls.h        |  23 +++
+ 7 files changed, 722 insertions(+), 185 deletions(-)
+
+diff --git a/zebra/rt_netlink.c b/zebra/rt_netlink.c
+index 8709d98..4d2af07 100644
+--- a/zebra/rt_netlink.c
++++ b/zebra/rt_netlink.c
+@@ -71,12 +71,6 @@
+ 
+ static vlanid_t filter_vlan = 0;
+ 
+-struct gw_family_t {
+-	uint16_t filler;
+-	uint16_t family;
+-	union g_addr gate;
+-};
+-
+ char ipv4_ll_buf[16] = "169.254.0.1";
+ struct in_addr ipv4_ll;
+ 
+@@ -106,62 +100,6 @@ static inline int is_selfroute(int proto)
+ 	return 0;
+ }
+ 
+-static inline int zebra2proto(int proto)
+-{
+-	switch (proto) {
+-	case ZEBRA_ROUTE_BABEL:
+-		proto = RTPROT_BABEL;
+-		break;
+-	case ZEBRA_ROUTE_BGP:
+-		proto = RTPROT_BGP;
+-		break;
+-	case ZEBRA_ROUTE_OSPF:
+-	case ZEBRA_ROUTE_OSPF6:
+-		proto = RTPROT_OSPF;
+-		break;
+-	case ZEBRA_ROUTE_STATIC:
+-		proto = RTPROT_ZSTATIC;
+-		break;
+-	case ZEBRA_ROUTE_ISIS:
+-		proto = RTPROT_ISIS;
+-		break;
+-	case ZEBRA_ROUTE_RIP:
+-		proto = RTPROT_RIP;
+-		break;
+-	case ZEBRA_ROUTE_RIPNG:
+-		proto = RTPROT_RIPNG;
+-		break;
+-	case ZEBRA_ROUTE_NHRP:
+-		proto = RTPROT_NHRP;
+-		break;
+-	case ZEBRA_ROUTE_EIGRP:
+-		proto = RTPROT_EIGRP;
+-		break;
+-	case ZEBRA_ROUTE_LDP:
+-		proto = RTPROT_LDP;
+-		break;
+-	case ZEBRA_ROUTE_SHARP:
+-		proto = RTPROT_SHARP;
+-		break;
+-	case ZEBRA_ROUTE_PBR:
+-		proto = RTPROT_PBR;
+-		break;
+-	default:
+-		/*
+-		 * When a user adds a new protocol this will show up
+-		 * to let them know to do something about it.  This
+-		 * is intentionally a warn because we should see
+-		 * this as part of development of a new protocol
+-		 */
+-		zlog_warn("%s: Please add this protocol(%d) to proper rt_netlink.c handling",
+-			  __PRETTY_FUNCTION__, proto);
+-		proto = RTPROT_ZEBRA;
+-		break;
+-	}
+-
+-	return proto;
+-}
+-
+ static inline int proto2zebra(int proto, int family)
+ {
+ 	switch (proto) {
+diff --git a/zebra/rt_netlink.h b/zebra/rt_netlink.h
+index c4f21d1..95a8abe 100644
+--- a/zebra/rt_netlink.h
++++ b/zebra/rt_netlink.h
+@@ -55,6 +55,68 @@
+ #define RTPROT_PBR         195
+ #define RTPROT_ZSTATIC     196
+ 
++struct gw_family_t {
++	uint16_t filler;
++	uint16_t family;
++	union g_addr gate;
++};
++
++static inline int zebra2proto(int proto)
++{
++	switch (proto) {
++	case ZEBRA_ROUTE_BABEL:
++		proto = RTPROT_BABEL;
++		break;
++	case ZEBRA_ROUTE_BGP:
++		proto = RTPROT_BGP;
++		break;
++	case ZEBRA_ROUTE_OSPF:
++	case ZEBRA_ROUTE_OSPF6:
++		proto = RTPROT_OSPF;
++		break;
++	case ZEBRA_ROUTE_STATIC:
++		proto = RTPROT_ZSTATIC;
++		break;
++	case ZEBRA_ROUTE_ISIS:
++		proto = RTPROT_ISIS;
++		break;
++	case ZEBRA_ROUTE_RIP:
++		proto = RTPROT_RIP;
++		break;
++	case ZEBRA_ROUTE_RIPNG:
++		proto = RTPROT_RIPNG;
++		break;
++	case ZEBRA_ROUTE_NHRP:
++		proto = RTPROT_NHRP;
++		break;
++	case ZEBRA_ROUTE_EIGRP:
++		proto = RTPROT_EIGRP;
++		break;
++	case ZEBRA_ROUTE_LDP:
++		proto = RTPROT_LDP;
++		break;
++	case ZEBRA_ROUTE_SHARP:
++		proto = RTPROT_SHARP;
++		break;
++	case ZEBRA_ROUTE_PBR:
++		proto = RTPROT_PBR;
++		break;
++	default:
++		/*
++		 * When a user adds a new protocol this will show up
++		 * to let them know to do something about it.  This
++		 * is intentionally a warn because we should see
++		 * this as part of development of a new protocol
++		 */
++		zlog_warn("%s: Please add this protocol(%d) to proper rt_netlink.c handling",
++			  __PRETTY_FUNCTION__, proto);
++		proto = RTPROT_ZEBRA;
++		break;
++	}
++
++	return proto;
++}
++
+ void rt_netlink_init(void);
+ 
+ extern int netlink_mpls_multipath(int cmd, zebra_lsp_t *lsp);
+diff --git a/zebra/zebra_fpm.c b/zebra/zebra_fpm.c
+index 1cb14ab..746c361 100644
+--- a/zebra/zebra_fpm.c
++++ b/zebra/zebra_fpm.c
+@@ -33,6 +33,7 @@
+ 
+ #include "zebra/rib.h"
+ #include "zebra/zserv.h"
++#include "zebra/zebra_mpls.h"
+ #include "zebra/zebra_ns.h"
+ #include "zebra/zebra_vrf.h"
+ #include "zebra/zebra_errors.h"
+@@ -72,6 +73,17 @@ typedef struct zfpm_rnodes_iter_t_ {
+ 	route_table_iter_t iter;
+ } zfpm_rnodes_iter_t;
+ 
++/*
++ * Structure that holds state for iterating over all lsp
++ * structures that are candidates for being communicated to the FPM.
++ */
++typedef struct zfpm_lsp_iter_t_ {
++	route_table_iter_state_t state;
++	struct list *lsp_table;
++	struct listnode *current;
++	mpls_label_t paused_label;
++} zfpm_lsp_iter_t;
++
+ /*
+  * Statistics.
+  */
+@@ -90,19 +102,27 @@ typedef struct zfpm_stats_t_ {
+ 	unsigned long nop_deletes_skipped;
+ 	unsigned long route_adds;
+ 	unsigned long route_dels;
++	unsigned long lsp_nop_deletes_skipped;
++	unsigned long lsp_adds;
++	unsigned long lsp_dels;
+ 
+ 	unsigned long updates_triggered;
+ 	unsigned long redundant_triggers;
++	unsigned long lsp_updates_triggered;
++	unsigned long lsp_redundant_triggers;
+ 
+ 	unsigned long dests_del_after_update;
++	unsigned long lsps_del_after_update;
+ 
+ 	unsigned long t_conn_down_starts;
+ 	unsigned long t_conn_down_dests_processed;
++	unsigned long t_conn_down_lsps_processed;
+ 	unsigned long t_conn_down_yields;
+ 	unsigned long t_conn_down_finishes;
+ 
+ 	unsigned long t_conn_up_starts;
+ 	unsigned long t_conn_up_dests_processed;
++	unsigned long t_conn_up_lsps_processed;
+ 	unsigned long t_conn_up_yields;
+ 	unsigned long t_conn_up_aborts;
+ 	unsigned long t_conn_up_finishes;
+@@ -178,6 +198,11 @@ typedef struct zfpm_glob_t_ {
+ 	 */
+ 	TAILQ_HEAD(zfpm_dest_q, rib_dest_t_) dest_q;
+ 
++	/*
++	 * List of zebra_lsp_t structures to be processed
++	 */
++	TAILQ_HEAD(zfpm_lsp_q, zebra_lsp_t_) lsp_q;
++
+ 	/*
+ 	 * Stream socket to the FPM.
+ 	 */
+@@ -204,6 +229,7 @@ typedef struct zfpm_glob_t_ {
+ 
+ 	struct {
+ 		zfpm_rnodes_iter_t iter;
++		zfpm_lsp_iter_t lsp_iter;
+ 	} t_conn_down_state;
+ 
+ 	/*
+@@ -214,6 +240,7 @@ typedef struct zfpm_glob_t_ {
+ 
+ 	struct {
+ 		zfpm_rnodes_iter_t iter;
++		zfpm_lsp_iter_t lsp_iter;
+ 	} t_conn_up_state;
+ 
+ 	unsigned long connect_calls;
+@@ -252,6 +279,7 @@ static zfpm_glob_t zfpm_glob_space;
+ static zfpm_glob_t *zfpm_g = &zfpm_glob_space;
+ 
+ static int zfpm_trigger_update(struct route_node *rn, const char *reason);
++static int zfpm_trigger_lsp_update(zebra_lsp_t *lsp, const char *reason);
+ 
+ static int zfpm_read_cb(struct thread *thread);
+ static int zfpm_write_cb(struct thread *thread);
+@@ -374,6 +402,86 @@ static inline void zfpm_rnodes_iter_cleanup(zfpm_rnodes_iter_t *iter)
+ 	rib_tables_iter_cleanup(&iter->tables_iter);
+ }
+ 
++/*
++ * zfpm_lsp_iter_cleanup
++ */
++static inline void zfpm_lsp_iter_cleanup(zfpm_lsp_iter_t *iter)
++{
++	if (iter->lsp_table)
++		list_delete_and_null(&iter->lsp_table);
++	memset(iter, 0, sizeof(*iter));
++	iter->state = RT_ITER_STATE_DONE;
++}
++
++/*
++ * zfpm_lsp_iter_init
++ */
++static inline void zfpm_lsp_iter_init(zfpm_lsp_iter_t *iter)
++{
++	struct zebra_vrf *zvrf = vrf_info_lookup(VRF_DEFAULT);
++
++	assert(zvrf);
++	zfpm_lsp_iter_cleanup(iter);
++	iter->lsp_table = zebra_mpls_get_sorted_lsp_table(zvrf);
++	iter->state = RT_ITER_STATE_INIT;
++}
++
++/*
++ * zfpm_lsp_iter_next
++ */
++static inline zebra_lsp_t *zfpm_lsp_iter_next(zfpm_lsp_iter_t *iter)
++{
++	mpls_label_t paused_label;
++	zebra_lsp_t *lsp;
++
++	switch (iter->state) {
++
++	case RT_ITER_STATE_INIT:
++		iter->current = listhead(iter->lsp_table);
++		break;
++
++	case RT_ITER_STATE_ITERATING:
++		iter->current = listnextnode(iter->current);
++		break;
++
++	case RT_ITER_STATE_PAUSED:
++		paused_label = iter->paused_label;
++		zfpm_lsp_iter_init(iter);
++		for (ALL_LIST_ELEMENTS_RO(iter->lsp_table, iter->current, lsp))
++			if (lsp->ile.in_label > paused_label)
++				break;
++		break;
++
++	case RT_ITER_STATE_DONE:
++		return NULL;
++
++	default:
++		assert(0);
++	}
++
++	if (iter->current) {
++		iter->state = RT_ITER_STATE_ITERATING;
++		return listgetdata(iter->current);
++	}
++
++	iter->state = RT_ITER_STATE_DONE;
++	return NULL;
++}
++
++/*
++ * zfpm_lsp_iter_pause
++ */
++static inline void zfpm_lsp_iter_pause(zfpm_lsp_iter_t *iter)
++{
++	zebra_lsp_t *lsp;
++
++	lsp = listgetdata(iter->current);
++	iter->paused_label = lsp->ile.in_label;
++	iter->current = NULL;
++	list_delete_and_null(&iter->lsp_table);
++	iter->state = RT_ITER_STATE_PAUSED;
++}
++
+ /*
+  * zfpm_stats_init
+  *
+@@ -479,11 +587,14 @@ static int zfpm_conn_up_thread_cb(struct thread *thread)
+ {
+ 	struct route_node *rnode;
+ 	zfpm_rnodes_iter_t *iter;
++	zfpm_lsp_iter_t *lsp_iter;
+ 	rib_dest_t *dest;
++	zebra_lsp_t *lsp;
+ 
+ 	zfpm_g->t_conn_up = NULL;
+ 
+ 	iter = &zfpm_g->t_conn_up_state.iter;
++	lsp_iter = &zfpm_g->t_conn_up_state.lsp_iter;
+ 
+ 	if (zfpm_g->state != ZFPM_STATE_ESTABLISHED) {
+ 		zfpm_debug(
+@@ -514,10 +625,29 @@ static int zfpm_conn_up_thread_cb(struct thread *thread)
+ 		return 0;
+ 	}
+ 
++	while ((lsp = zfpm_lsp_iter_next(lsp_iter))) {
++		zfpm_g->stats.t_conn_up_lsps_processed++;
++		zfpm_trigger_lsp_update(lsp, NULL);
++
++		/*
++		 * Yield if need be.
++		 */
++		if (!zfpm_thread_should_yield(thread))
++			continue;
++
++		zfpm_g->stats.t_conn_up_yields++;
++		zfpm_lsp_iter_pause(lsp_iter);
++		zfpm_g->t_conn_up = NULL;
++		thread_add_timer_msec(zfpm_g->master, zfpm_conn_up_thread_cb,
++				      NULL, 0, &zfpm_g->t_conn_up);
++		return 0;
++	}
++
+ 	zfpm_g->stats.t_conn_up_finishes++;
+ 
+ done:
+ 	zfpm_rnodes_iter_cleanup(iter);
++	zfpm_lsp_iter_cleanup(lsp_iter);
+ 	return 0;
+ }
+ 
+@@ -539,6 +669,7 @@ static void zfpm_connection_up(const char *detail)
+ 	assert(!zfpm_g->t_conn_up);
+ 
+ 	zfpm_rnodes_iter_init(&zfpm_g->t_conn_up_state.iter);
++	zfpm_lsp_iter_init(&zfpm_g->t_conn_up_state.lsp_iter);
+ 
+ 	zfpm_debug("Starting conn_up thread");
+ 	zfpm_g->t_conn_up = NULL;
+@@ -590,13 +721,16 @@ static int zfpm_conn_down_thread_cb(struct thread *thread)
+ {
+ 	struct route_node *rnode;
+ 	zfpm_rnodes_iter_t *iter;
++	zfpm_lsp_iter_t *lsp_iter;
+ 	rib_dest_t *dest;
++	zebra_lsp_t *lsp;
+ 
+ 	assert(zfpm_g->state == ZFPM_STATE_IDLE);
+ 
+ 	zfpm_g->t_conn_down = NULL;
+ 
+ 	iter = &zfpm_g->t_conn_down_state.iter;
++	lsp_iter = &zfpm_g->t_conn_down_state.lsp_iter;
+ 
+ 	while ((rnode = zfpm_rnodes_iter_next(iter))) {
+ 		dest = rib_dest_from_rnode(rnode);
+@@ -632,8 +766,38 @@ static int zfpm_conn_down_thread_cb(struct thread *thread)
+ 		return 0;
+ 	}
+ 
++	while ((lsp = zfpm_lsp_iter_next(lsp_iter))) {
++		if (CHECK_FLAG(lsp->flags, LSP_UPDATE_FPM)) {
++			TAILQ_REMOVE(&zfpm_g->lsp_q, lsp, fpm_q_entries);
++		}
++
++		UNSET_FLAG(lsp->flags, LSP_UPDATE_FPM);
++		UNSET_FLAG(lsp->flags, LSP_SENT_TO_FPM);
++
++		zfpm_g->stats.t_conn_down_lsps_processed++;
++
++		/*
++		 * Check if the dest should be deleted.
++		 */
++		zebra_gc_lsp(lsp);
++
++		/*
++		 * Yield if need be.
++		 */
++		if (!zfpm_thread_should_yield(thread))
++			continue;
++
++		zfpm_g->stats.t_conn_down_yields++;
++		zfpm_lsp_iter_pause(lsp_iter);
++		zfpm_g->t_conn_down = NULL;
++		thread_add_timer_msec(zfpm_g->master, zfpm_conn_down_thread_cb,
++				      NULL, 0, &zfpm_g->t_conn_down);
++		return 0;
++	}
++
+ 	zfpm_g->stats.t_conn_down_finishes++;
+ 	zfpm_rnodes_iter_cleanup(iter);
++	zfpm_lsp_iter_cleanup(lsp_iter);
+ 
+ 	/*
+ 	 * Start the process of connecting to the FPM again.
+@@ -673,6 +837,7 @@ static void zfpm_connection_down(const char *detail)
+ 	assert(!zfpm_g->t_conn_down);
+ 	zfpm_debug("Starting conn_down thread");
+ 	zfpm_rnodes_iter_init(&zfpm_g->t_conn_down_state.iter);
++	zfpm_lsp_iter_init(&zfpm_g->t_conn_down_state.lsp_iter);
+ 	zfpm_g->t_conn_down = NULL;
+ 	thread_add_timer_msec(zfpm_g->master, zfpm_conn_down_thread_cb, NULL, 0,
+ 			      &zfpm_g->t_conn_down);
+@@ -799,6 +964,12 @@ static int zfpm_writes_pending(void)
+ 	if (!TAILQ_EMPTY(&zfpm_g->dest_q))
+ 		return 1;
+ 
++	/*
++	 * Check if there are any LSPs on the outbound queue.
++	 */
++	if (!TAILQ_EMPTY(&zfpm_g->lsp_q))
++		return 1;
++
+ 	return 0;
+ }
+ 
+@@ -861,15 +1032,12 @@ struct route_entry *zfpm_route_for_update(rib_dest_t *dest)
+ }
+ 
+ /*
+- * zfpm_build_updates
++ * zfpm_write_dest
+  *
+- * Process the outgoing queue and write messages to the outbound
+- * buffer.
++ * Write route message to the outbound buffer.
+  */
+-static void zfpm_build_updates(void)
++static void zfpm_write_dest(struct stream *s, rib_dest_t *dest)
+ {
+-	struct stream *s;
+-	rib_dest_t *dest;
+ 	unsigned char *buf, *data, *buf_end;
+ 	size_t msg_len;
+ 	size_t data_len;
+@@ -878,82 +1046,219 @@ static void zfpm_build_updates(void)
+ 	int is_add, write_msg;
+ 	fpm_msg_type_e msg_type;
+ 
+-	s = zfpm_g->obuf;
++	buf = STREAM_DATA(s) + stream_get_endp(s);
++	buf_end = buf + STREAM_WRITEABLE(s);
+ 
+-	assert(stream_empty(s));
++	assert(CHECK_FLAG(dest->flags, RIB_DEST_UPDATE_FPM));
+ 
+-	do {
++	hdr = (fpm_msg_hdr_t *)buf;
++	hdr->version = FPM_PROTO_VERSION;
+ 
+-		/*
+-		 * Make sure there is enough space to write another message.
+-		 */
+-		if (STREAM_WRITEABLE(s) < FPM_MAX_MSG_LEN)
+-			break;
++	data = fpm_msg_data(hdr);
+ 
+-		buf = STREAM_DATA(s) + stream_get_endp(s);
+-		buf_end = buf + STREAM_WRITEABLE(s);
++	re = zfpm_route_for_update(dest);
++	is_add = re ? 1 : 0;
+ 
+-		dest = TAILQ_FIRST(&zfpm_g->dest_q);
+-		if (!dest)
+-			break;
++	write_msg = 1;
+ 
+-		assert(CHECK_FLAG(dest->flags, RIB_DEST_UPDATE_FPM));
++	/*
++	 * If this is a route deletion, and we have not sent the route
++	 * to
++	 * the FPM previously, skip it.
++	 */
++	if (!is_add && !CHECK_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM)) {
++		write_msg = 0;
++		zfpm_g->stats.nop_deletes_skipped++;
++	}
+ 
+-		hdr = (fpm_msg_hdr_t *)buf;
+-		hdr->version = FPM_PROTO_VERSION;
++	if (write_msg) {
++		data_len = zfpm_encode_route(dest, re, (char *)data,
++					     buf_end - data, &msg_type);
++
++		assert(data_len);
++		if (data_len) {
++			hdr->msg_type = msg_type;
++			msg_len = fpm_data_len_to_msg_len(data_len);
++			hdr->msg_len = htons(msg_len);
++			stream_forward_endp(s, msg_len);
++
++			if (is_add)
++				zfpm_g->stats.route_adds++;
++			else
++				zfpm_g->stats.route_dels++;
++		}
++	}
+ 
+-		data = fpm_msg_data(hdr);
++	/*
++	 * Remove the dest from the queue, and reset the flag.
++	 */
++	UNSET_FLAG(dest->flags, RIB_DEST_UPDATE_FPM);
++	TAILQ_REMOVE(&zfpm_g->dest_q, dest, fpm_q_entries);
+ 
+-		re = zfpm_route_for_update(dest);
+-		is_add = re ? 1 : 0;
++	if (is_add) {
++		SET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
++	} else {
++		UNSET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
++	}
+ 
+-		write_msg = 1;
++	/*
++	 * Delete the destination if necessary.
++	 */
++	if (rib_gc_dest(dest->rnode))
++		zfpm_g->stats.dests_del_after_update++;
++}
+ 
+-		/*
+-		 * If this is a route deletion, and we have not sent the route
+-		 * to
+-		 * the FPM previously, skip it.
+-		 */
+-		if (!is_add && !CHECK_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM)) {
+-			write_msg = 0;
+-			zfpm_g->stats.nop_deletes_skipped++;
+-		}
++/*
++ * zfpm_encode_lsp
++ *
++ * Encode a message to the FPM with information about the given lsp.
++ *
++ * Returns the number of bytes written to the buffer. 0 or a negative
++ * value indicates an error.
++ */
++static inline int zfpm_encode_lsp(zebra_lsp_t *lsp, char *in_buf,
++				  size_t in_buf_len, fpm_msg_type_e *msg_type)
++{
++	size_t len;
++#ifdef HAVE_NETLINK
++	int cmd;
++#endif
++	len = 0;
+ 
+-		if (write_msg) {
+-			data_len = zfpm_encode_route(dest, re, (char *)data,
+-						     buf_end - data, &msg_type);
+-
+-			assert(data_len);
+-			if (data_len) {
+-				hdr->msg_type = msg_type;
+-				msg_len = fpm_data_len_to_msg_len(data_len);
+-				hdr->msg_len = htons(msg_len);
+-				stream_forward_endp(s, msg_len);
+-
+-				if (is_add)
+-					zfpm_g->stats.route_adds++;
+-				else
+-					zfpm_g->stats.route_dels++;
+-			}
+-		}
++	*msg_type = FPM_MSG_TYPE_NONE;
+ 
+-		/*
+-		 * Remove the dest from the queue, and reset the flag.
+-		 */
+-		UNSET_FLAG(dest->flags, RIB_DEST_UPDATE_FPM);
+-		TAILQ_REMOVE(&zfpm_g->dest_q, dest, fpm_q_entries);
++	switch (zfpm_g->message_format) {
+ 
+-		if (is_add) {
+-			SET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
+-		} else {
+-			UNSET_FLAG(dest->flags, RIB_DEST_SENT_TO_FPM);
++	case ZFPM_MSG_FORMAT_PROTOBUF:
++#ifdef HAVE_PROTOBUF
++		/* TBD */
++#endif
++		break;
++
++	case ZFPM_MSG_FORMAT_NETLINK:
++#ifdef HAVE_NETLINK
++		*msg_type = FPM_MSG_TYPE_NETLINK;
++		cmd = lsp->best_nhlfe ? RTM_NEWROUTE : RTM_DELROUTE;
++		len = zfpm_netlink_encode_lsp(cmd, lsp, in_buf, in_buf_len);
++		assert(fpm_msg_align(len) == len);
++		*msg_type = FPM_MSG_TYPE_NETLINK;
++#endif /* HAVE_NETLINK */
++		break;
++
++	default:
++		break;
++	}
++
++	return len;
++}
++
++/*
++ * zfpm_write_lsp
++ *
++ * Write lsp message to the outbound buffer.
++ */
++static void zfpm_write_lsp(struct stream *s, zebra_lsp_t *lsp)
++{
++	unsigned char *buf, *data, *buf_end;
++	size_t msg_len;
++	size_t data_len;
++	fpm_msg_hdr_t *hdr;
++	int is_add, write_msg;
++	fpm_msg_type_e msg_type;
++
++	buf = STREAM_DATA(s) + stream_get_endp(s);
++	buf_end = buf + STREAM_WRITEABLE(s);
++
++	assert(CHECK_FLAG(lsp->flags, LSP_UPDATE_FPM));
++
++	hdr = (fpm_msg_hdr_t *)buf;
++	hdr->version = FPM_PROTO_VERSION;
++
++	data = fpm_msg_data(hdr);
++
++	is_add = lsp->best_nhlfe ? 1 : 0;
++
++	write_msg = 1;
++
++	/*
++	 * If this is a lsp deletion, and we have not sent the lsp
++	 * to the FPM previously, skip it.
++	 */
++	if (!is_add && !CHECK_FLAG(lsp->flags, LSP_SENT_TO_FPM)) {
++		write_msg = 0;
++		zfpm_g->stats.lsp_nop_deletes_skipped++;
++	}
++
++	if (write_msg) {
++		data_len = zfpm_encode_lsp(lsp, (char *)data,
++					   buf_end - data, &msg_type);
++
++		assert(data_len);
++		if (data_len) {
++			hdr->msg_type = msg_type;
++			msg_len = fpm_data_len_to_msg_len(data_len);
++			hdr->msg_len = htons(msg_len);
++			stream_forward_endp(s, msg_len);
++
++			if (is_add)
++				zfpm_g->stats.lsp_adds++;
++			else
++				zfpm_g->stats.lsp_dels++;
+ 		}
++	}
++
++	/*
++	 * Remove the lsp from the queue, and reset the flag.
++	 */
++	UNSET_FLAG(lsp->flags, LSP_UPDATE_FPM);
++	TAILQ_REMOVE(&zfpm_g->lsp_q, lsp, fpm_q_entries);
++
++	if (is_add) {
++		SET_FLAG(lsp->flags, LSP_SENT_TO_FPM);
++	} else {
++		UNSET_FLAG(lsp->flags, LSP_SENT_TO_FPM);
++	}
++
++	/*
++	 * Delete the lsp if necessary.
++	 */
++	if (zebra_gc_lsp(lsp))
++		zfpm_g->stats.lsps_del_after_update++;
++}
++
++/*
++ * zfpm_build_updates
++ *
++ * Process the outgoing queue and write messages to the outbound
++ * buffer.
++ */
++static void zfpm_build_updates(void)
++{
++	struct stream *s;
++	rib_dest_t *dest;
++	zebra_lsp_t *lsp;
++
++	s = zfpm_g->obuf;
++
++	assert(stream_empty(s));
++
++	do {
+ 
+ 		/*
+-		 * Delete the destination if necessary.
++		 * Make sure there is enough space to write another message.
+ 		 */
+-		if (rib_gc_dest(dest->rnode))
+-			zfpm_g->stats.dests_del_after_update++;
++		if (STREAM_WRITEABLE(s) < FPM_MAX_MSG_LEN)
++			break;
++
++		dest = TAILQ_FIRST(&zfpm_g->dest_q);
++		lsp = TAILQ_FIRST(&zfpm_g->lsp_q);
++
++		if (dest)
++			zfpm_write_dest(s, dest);
++		else if (lsp)
++			zfpm_write_lsp(s, lsp);
++		else
++			break;
+ 
+ 	} while (1);
+ }
+@@ -1276,6 +1581,45 @@ static int zfpm_trigger_update(struct route_node *rn, const char *reason)
+ 	return 0;
+ }
+ 
++/*
++ * zfpm_trigger_lsp_update
++ *
++ * The zebra code invokes this function to indicate that we should
++ * send an update to the FPM about the given lsp.
++ */
++static int zfpm_trigger_lsp_update(zebra_lsp_t *lsp, const char *reason)
++{
++	/*
++	 * Ignore if the connection is down. We will update the FPM about
++	 * all lsps once the connection comes up.
++	 */
++	if (!zfpm_conn_is_up())
++		return 0;
++
++	if (CHECK_FLAG(lsp->flags, LSP_UPDATE_FPM)) {
++		zfpm_g->stats.lsp_redundant_triggers++;
++		return 0;
++	}
++
++	if (reason) {
++		zfpm_debug("%d triggering lsp update to FPM - Reason: %s",
++			   lsp->ile.in_label, reason);
++	}
++
++	SET_FLAG(lsp->flags, LSP_UPDATE_FPM);
++	TAILQ_INSERT_TAIL(&zfpm_g->lsp_q, lsp, fpm_q_entries);
++	zfpm_g->stats.lsp_updates_triggered++;
++
++	/*
++	 * Make sure that writes are enabled.
++	 */
++	if (zfpm_g->t_write)
++		return 0;
++
++	zfpm_write_on();
++	return 0;
++}
++
+ /*
+  * zfpm_stats_timer_cb
+  */
+@@ -1365,15 +1709,23 @@ static void zfpm_show_stats(struct vty *vty)
+ 	ZFPM_SHOW_STAT(nop_deletes_skipped);
+ 	ZFPM_SHOW_STAT(route_adds);
+ 	ZFPM_SHOW_STAT(route_dels);
++	ZFPM_SHOW_STAT(lsp_nop_deletes_skipped);
++	ZFPM_SHOW_STAT(lsp_adds);
++	ZFPM_SHOW_STAT(lsp_dels);
+ 	ZFPM_SHOW_STAT(updates_triggered);
++	ZFPM_SHOW_STAT(lsp_updates_triggered);
+ 	ZFPM_SHOW_STAT(redundant_triggers);
++	ZFPM_SHOW_STAT(lsp_redundant_triggers);
+ 	ZFPM_SHOW_STAT(dests_del_after_update);
++	ZFPM_SHOW_STAT(lsps_del_after_update);
+ 	ZFPM_SHOW_STAT(t_conn_down_starts);
+ 	ZFPM_SHOW_STAT(t_conn_down_dests_processed);
++	ZFPM_SHOW_STAT(t_conn_down_lsps_processed);
+ 	ZFPM_SHOW_STAT(t_conn_down_yields);
+ 	ZFPM_SHOW_STAT(t_conn_down_finishes);
+ 	ZFPM_SHOW_STAT(t_conn_up_starts);
+ 	ZFPM_SHOW_STAT(t_conn_up_dests_processed);
++	ZFPM_SHOW_STAT(t_conn_up_lsps_processed);
+ 	ZFPM_SHOW_STAT(t_conn_up_yields);
+ 	ZFPM_SHOW_STAT(t_conn_up_aborts);
+ 	ZFPM_SHOW_STAT(t_conn_up_finishes);
+@@ -1589,6 +1941,7 @@ static int zfpm_init(struct thread_master *master)
+ 	memset(zfpm_g, 0, sizeof(*zfpm_g));
+ 	zfpm_g->master = master;
+ 	TAILQ_INIT(&zfpm_g->dest_q);
++	TAILQ_INIT(&zfpm_g->lsp_q);
+ 	zfpm_g->sock = -1;
+ 	zfpm_g->state = ZFPM_STATE_IDLE;
+ 
+@@ -1631,6 +1984,7 @@ static int zfpm_init(struct thread_master *master)
+ static int zebra_fpm_module_init(void)
+ {
+ 	hook_register(rib_update, zfpm_trigger_update);
++	hook_register(lsp_update, zfpm_trigger_lsp_update);
+ 	hook_register(frr_late_init, zfpm_init);
+ 	return 0;
+ }
+diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
+index 8e86981..0b46c4a 100644
+--- a/zebra/zebra_fpm_netlink.c
++++ b/zebra/zebra_fpm_netlink.c
+@@ -43,6 +43,17 @@
+ 
+ #include "zebra/zebra_fpm_private.h"
+ 
++#define MPLS_ADDR_STRLEN 10
++
++static const char *mpls_ntoa(mpls_lse_t lse)
++{
++	static char str[MPLS_ADDR_STRLEN];
++
++	lse = ntohl(lse);
++	snprintf(str, sizeof(str), "%u", MPLS_LABEL_VALUE(lse));
++	return str;
++}
++
+ /*
+  * addr_to_a
+  *
+@@ -61,6 +72,9 @@ static inline const char *addr_to_a(uint8_t af, void *addr)
+ 	case AF_INET6:
+ 		return inet6_ntoa(*((struct in6_addr *)addr));
+ 		break;
++	case AF_MPLS:
++		return mpls_ntoa(*((mpls_lse_t *)addr));
++		break;
+ 	default:
+ 		return "<Addr in unknown AF>";
+ 		break;
+@@ -91,6 +105,7 @@ static size_t af_addr_size(uint8_t af)
+ 	switch (af) {
+ 
+ 	case AF_INET:
++	case AF_MPLS:
+ 		return 4;
+ 		break;
+ 	case AF_INET6:
+@@ -369,8 +384,28 @@ static int netlink_route_info_encode(netlink_route_info_t *ri, char *in_buf,
+ 		nhi = &ri->nhs[0];
+ 
+ 		if (nhi->gateway) {
+-			addattr_l(&req->n, in_buf_len, RTA_GATEWAY,
+-				  nhi->gateway, bytelen);
++			if (ri->af == AF_MPLS) {
++				struct gw_family_t gw_fam;
++				size_t gw_len;
++
++				if (nhi->type == NEXTHOP_TYPE_IPV4 ||
++				    nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX) {
++					gw_fam.family = AF_INET;
++					gw_len = sizeof(gw_fam.gate.ipv4);
++					memcpy(&gw_fam.gate.ipv4,
++					       &nhi->gateway->ipv4, gw_len);
++				} else {
++					gw_fam.family = AF_INET6;
++					gw_len = sizeof(gw_fam.gate.ipv6);
++					memcpy(&gw_fam.gate.ipv6,
++					       &nhi->gateway->ipv6, gw_len);
++				}
++				addattr_l(&req->n, in_buf_len, RTA_VIA,
++					  &gw_fam.family, gw_len + 2);
++			} else {
++				addattr_l(&req->n, in_buf_len, RTA_GATEWAY,
++					  nhi->gateway, bytelen);
++			}
+ 		}
+ 
+ 		if (nhi->if_index) {
+@@ -378,16 +413,23 @@ static int netlink_route_info_encode(netlink_route_info_t *ri, char *in_buf,
+ 		}
+ 
+ 		if (nhi->num_labels) {
+-			struct rtattr *nest;
+-			uint16_t encap = LWTUNNEL_ENCAP_MPLS;
+-
+-			addattr_l(&req->n, in_buf_len, RTA_ENCAP_TYPE,
+-				  &encap, sizeof(uint16_t));
+-			nest = addattr_nest(&req->n, in_buf_len, RTA_ENCAP);
+-			addattr_l(&req->n, in_buf_len, MPLS_IPTUNNEL_DST,
+-				  nhi->lse,
+-				  nhi->num_labels * sizeof(mpls_lse_t));
+-			addattr_nest_end(&req->n, nest);
++			if (ri->af == AF_MPLS) {
++				addattr_l(&req->n, in_buf_len, RTA_NEWDST,
++					  nhi->lse,
++					  nhi->num_labels * sizeof(mpls_lse_t));
++			} else {
++				struct rtattr *nest;
++				uint16_t encap = LWTUNNEL_ENCAP_MPLS;
++
++				addattr_l(&req->n, in_buf_len, RTA_ENCAP_TYPE,
++					  &encap, sizeof(uint16_t));
++				nest = addattr_nest(&req->n, in_buf_len,
++						    RTA_ENCAP);
++				addattr_l(&req->n, in_buf_len,
++					  MPLS_IPTUNNEL_DST, nhi->lse,
++					  nhi->num_labels * sizeof(mpls_lse_t));
++				addattr_nest_end(&req->n, nest);
++			}
+ 		}
+ 
+ 		goto done;
+@@ -473,9 +515,15 @@ static void zfpm_log_route_info(netlink_route_info_t *ri, const char *label)
+ 		   ri->metric ? *ri->metric : 0);
+ 
+ 	for (i = 0; i < ri->num_nhs; i++) {
++		uint8_t af;
++
+ 		nhi = &ri->nhs[i];
++		af = (ri->af != AF_MPLS) ? ri->af :
++			(nhi->type == NEXTHOP_TYPE_IPV4 ||
++			 nhi->type == NEXTHOP_TYPE_IPV4_IFINDEX) ?
++			AF_INET : AF_INET6;
+ 		zfpm_debug("  Intf: %u, Gateway: %s, Recursive: %s, Type: %s",
+-			   nhi->if_index, addr_to_a(ri->af, nhi->gateway),
++			   nhi->if_index, addr_to_a(af, nhi->gateway),
+ 			   nhi->recursive ? "yes" : "no",
+ 			   nexthop_type_to_str(nhi->type));
+ 		if (nhi->num_labels)
+@@ -507,4 +555,101 @@ int zfpm_netlink_encode_route(int cmd, rib_dest_t *dest, struct route_entry *re,
+ 	return netlink_route_info_encode(ri, in_buf, in_buf_len);
+ }
+ 
++/*
++ * netlink_route_info_fill_lsp
++ *
++ * Fill out the route information object from the given lsp.
++ *
++ * Returns TRUE on success and FALSE on failure.
++ */
++static int netlink_route_info_fill_lsp(netlink_route_info_t *ri, int cmd,
++				       zebra_lsp_t *lsp)
++{
++	zebra_nhlfe_t *nhlfe;
++	struct nexthop *nexthop;
++
++	memset(ri, 0, sizeof(*ri));
++
++	ri->af = AF_MPLS;
++
++	ri->nlmsg_type = cmd;
++	ri->rtm_table = RT_TABLE_MAIN;
++	ri->rtm_protocol = RTPROT_UNSPEC;
++	ri->rtm_type = RTN_UNICAST;
++
++	/*
++	 * An RTM_DELROUTE need not be accompanied by any nexthops,
++	 * particularly in our communication with the FPM.
++	 */
++	if (cmd == RTM_DELROUTE && !lsp->best_nhlfe)
++		return 1;
++
++	if (cmd == RTM_NEWROUTE) {
++		int route_type = re_type_from_lsp_type(lsp->best_nhlfe->type);
++		ri->rtm_protocol = zebra2proto(route_type);
++	}
++
++	for (nhlfe = lsp->nhlfe_list; nhlfe; nhlfe = nhlfe->next) {
++		nexthop = nhlfe->nexthop;
++		if (!nexthop)
++			continue;
++
++		if (ri->num_nhs >= multipath_num)
++			break;
++
++		if (CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_RECURSIVE))
++			continue;
++
++		if ((cmd == RTM_NEWROUTE
++		     && CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_SELECTED)
++		     && CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_ACTIVE))
++		    || (cmd == RTM_DELROUTE
++			&& CHECK_FLAG(nhlfe->flags, NHLFE_FLAG_INSTALLED)
++			&& CHECK_FLAG(nexthop->flags, NEXTHOP_FLAG_FIB))) {
++			netlink_route_info_add_nh(ri, nexthop);
++		}
++	}
++
++	/* If there is no useful nexthop then return. */
++	if (ri->num_nhs == 0) {
++		zfpm_debug("netlink_encode_lsp(): No useful nexthop.");
++		return 0;
++	}
++
++	return 1;
++}
++
++/*
++ * zfpm_netlink_encode_lsp
++ *
++ * Create a netlink message corresponding to the given lsp in the
++ * given buffer space.
++ *
++ * Returns the number of bytes written to the buffer. 0 or a negative
++ * value indicates an error.
++ */
++int zfpm_netlink_encode_lsp(int cmd, zebra_lsp_t *lsp, char *in_buf,
++			    size_t in_buf_len)
++{
++	netlink_route_info_t ri_space, *ri;
++	struct prefix prefix;
++	mpls_lse_t lse;
++
++	ri = &ri_space;
++
++	if (!netlink_route_info_fill_lsp(ri, cmd, lsp))
++		return 0;
++
++	memset(&prefix, 0, sizeof(prefix));
++	prefix.family = AF_MPLS;
++	prefix.prefixlen = sizeof(lse);
++	lse = mpls_lse_encode(lsp->ile.in_label, 0, 0, 0);
++	memcpy(prefix.u.val, &lse, sizeof(lse));
++	ri->prefix = &prefix;
++
++	zfpm_log_route_info(ri, __FUNCTION__);
++
++	return netlink_route_info_encode(ri, in_buf, in_buf_len);
++}
++
+ #endif /* HAVE_NETLINK */
+diff --git a/zebra/zebra_fpm_private.h b/zebra/zebra_fpm_private.h
+index 969ab6c..0f35bd2 100644
+--- a/zebra/zebra_fpm_private.h
++++ b/zebra/zebra_fpm_private.h
+@@ -56,6 +56,8 @@ static inline void zfpm_debug(const char *format, ...)
+ extern int zfpm_netlink_encode_route(int cmd, rib_dest_t *dest,
+ 				     struct route_entry *re, char *in_buf,
+ 				     size_t in_buf_len);
++extern int zfpm_netlink_encode_lsp(int cmd, zebra_lsp_t *lsp, char *in_buf,
++				   size_t in_buf_len);
+ 
+ extern int zfpm_protobuf_encode_route(rib_dest_t *dest, struct route_entry *re,
+ 				      uint8_t *in_buf, size_t in_buf_len);
+diff --git a/zebra/zebra_mpls.c b/zebra/zebra_mpls.c
+index f7283ae..6b91747 100644
+--- a/zebra/zebra_mpls.c
++++ b/zebra/zebra_mpls.c
+@@ -54,6 +54,9 @@ DEFINE_MTYPE_STATIC(ZEBRA, NHLFE, "MPLS nexthop object")
+ DEFINE_MTYPE_STATIC(ZEBRA, SNHLFE, "MPLS static nexthop object")
+ DEFINE_MTYPE_STATIC(ZEBRA, SNHLFE_IFNAME, "MPLS static nexthop ifname")
+ 
++DEFINE_HOOK(lsp_update, (zebra_lsp_t *lsp, const char *reason),
++	    (lsp, reason))
++
+ int mpls_enabled;
+ 
+ /* Default rtm_table for all clients */
+@@ -131,6 +134,45 @@ static int mpls_processq_init(struct zebra_t *zebra);
+ 
+ /* Static functions */
+ 
++/*
++ * Returns TRUE if the given LSP can be deleted from the table.
++ */
++static int zebra_can_delete_lsp(zebra_lsp_t *lsp)
++{
++	if (lsp->nhlfe_list)
++		return 0;
++
++	/*
++	 * Don't delete the LSP if scheduled or FPM update required
++	 */
++	if (CHECK_FLAG(lsp->flags, LSP_FLAG_SCHEDULED)
++	    || CHECK_FLAG(lsp->flags, LSP_UPDATE_FPM)
++	    || CHECK_FLAG(lsp->flags, LSP_SENT_TO_FPM))
++		return 0;
++
++	return 1;
++}
++
++/*
++ * Garbage collect the LSP.
++ *
++ * Returns TRUE if the LSP was deleted, FALSE otherwise.
++ */
++int zebra_gc_lsp(zebra_lsp_t *lsp)
++{
++	if (!zebra_can_delete_lsp(lsp))
++		return 0;
++
++	if (IS_ZEBRA_DEBUG_MPLS)
++		zlog_debug("Free LSP in-label %u flags 0x%x",
++			   lsp->ile.in_label, lsp->flags);
++
++	lsp = hash_release(lsp->lsp_table, &lsp->ile);
++	if (lsp)
++		XFREE(MTYPE_LSP, lsp);
++	return 1;
++}
++
+ /*
+  * Handle failure in LSP install, clear flags for NHLFE.
+  */
+@@ -245,15 +287,8 @@ static int lsp_install(struct zebra_vrf *zvrf, mpls_label_t label,
+ 	if (added || changed) {
+ 		if (lsp_processq_add(lsp))
+ 			return -1;
+-	} else if (!lsp->nhlfe_list
+-		   && !CHECK_FLAG(lsp->flags, LSP_FLAG_SCHEDULED)) {
+-		if (IS_ZEBRA_DEBUG_MPLS)
+-			zlog_debug("Free LSP in-label %u flags 0x%x",
+-				   lsp->ile.in_label, lsp->flags);
+-
+-		lsp = hash_release(lsp_table, &lsp->ile);
+-		if (lsp)
+-			XFREE(MTYPE_LSP, lsp);
++	} else {
++		zebra_gc_lsp(lsp);
+ 	}
+ 
+ 	return 0;
+@@ -309,15 +344,8 @@ static int lsp_uninstall(struct zebra_vrf *zvrf, mpls_label_t label)
+ 	if (CHECK_FLAG(lsp->flags, LSP_FLAG_INSTALLED)) {
+ 		if (lsp_processq_add(lsp))
+ 			return -1;
+-	} else if (!lsp->nhlfe_list
+-		   && !CHECK_FLAG(lsp->flags, LSP_FLAG_SCHEDULED)) {
+-		if (IS_ZEBRA_DEBUG_MPLS)
+-			zlog_debug("Del LSP in-label %u flags 0x%x",
+-				   lsp->ile.in_label, lsp->flags);
+-
+-		lsp = hash_release(lsp_table, &lsp->ile);
+-		if (lsp)
+-			XFREE(MTYPE_LSP, lsp);
++	} else {
++		zebra_gc_lsp(lsp);
+ 	}
+ 
+ 	return 0;
+@@ -916,6 +944,7 @@ static wq_item_status lsp_process(struct work_queue *wq, void *data)
+ 		if (newbest) {
+ 
+ 			UNSET_FLAG(lsp->flags, LSP_FLAG_CHANGED);
++			hook_call(lsp_update, lsp, "installing in kernel");
+ 			switch (kernel_add_lsp(lsp)) {
+ 			case DP_REQUEST_QUEUED:
+ 				flog_err(
+@@ -933,6 +962,7 @@ static wq_item_status lsp_process(struct work_queue *wq, void *data)
+ 		/* Installed, may need an update and/or delete. */
+ 		if (!newbest) {
+ 
++			hook_call(lsp_update, lsp, "delete from kernel");
+ 			switch (kernel_del_lsp(lsp)) {
+ 			case DP_REQUEST_QUEUED:
+ 				flog_err(
+@@ -973,6 +1003,7 @@ static wq_item_status lsp_process(struct work_queue *wq, void *data)
+ 				}
+ 			}
+ 
++			hook_call(lsp_update, lsp, "update in kernel");
+ 			switch (kernel_upd_lsp(lsp)) {
+ 			case DP_REQUEST_QUEUED:
+ 				flog_err(
+@@ -1025,15 +1056,7 @@ static void lsp_processq_del(struct work_queue *wq, void *data)
+ 			nhlfe_del(nhlfe);
+ 	}
+ 
+-	if (!lsp->nhlfe_list) {
+-		if (IS_ZEBRA_DEBUG_MPLS)
+-			zlog_debug("Free LSP in-label %u flags 0x%x",
+-				   lsp->ile.in_label, lsp->flags);
+-
+-		lsp = hash_release(lsp_table, &lsp->ile);
+-		if (lsp)
+-			XFREE(MTYPE_LSP, lsp);
+-	}
++	zebra_gc_lsp(lsp);
+ }
+ 
+ /*
+@@ -1311,15 +1334,8 @@ static int mpls_lsp_uninstall_all(struct hash *lsp_table, zebra_lsp_t *lsp,
+ 	if (schedule_lsp) {
+ 		if (lsp_processq_add(lsp))
+ 			return -1;
+-	} else if (!lsp->nhlfe_list
+-		   && !CHECK_FLAG(lsp->flags, LSP_FLAG_SCHEDULED)) {
+-		if (IS_ZEBRA_DEBUG_MPLS)
+-			zlog_debug("Free LSP in-label %u flags 0x%x",
+-				   lsp->ile.in_label, lsp->flags);
+-
+-		lsp = hash_release(lsp_table, &lsp->ile);
+-		if (lsp)
+-			XFREE(MTYPE_LSP, lsp);
++	} else {
++		zebra_gc_lsp(lsp);
+ 	}
+ 
+ 	return 0;
+@@ -1501,6 +1517,11 @@ static int lsp_cmp(zebra_lsp_t *lsp1, zebra_lsp_t *lsp2)
+ 	return 0;
+ }
+ 
++struct list *zebra_mpls_get_sorted_lsp_table(struct zebra_vrf *zvrf)
++{
++	return hash_get_sorted_list(zvrf->lsp_table, lsp_cmp);
++}
++
+ /*
+  * Callback to allocate static LSP.
+  */
+@@ -2329,6 +2350,7 @@ int mpls_lsp_install(struct zebra_vrf *zvrf, enum lsp_types_t type,
+ 	lsp = hash_get(lsp_table, &tmp_ile, lsp_alloc);
+ 	if (!lsp)
+ 		return -1;
++	lsp->lsp_table = lsp_table;
+ 	nhlfe = nhlfe_find(lsp, type, gtype, gate, ifindex);
+ 	if (nhlfe) {
+ 		struct nexthop *nh = nhlfe->nexthop;
+@@ -2422,16 +2444,7 @@ int mpls_lsp_uninstall(struct zebra_vrf *zvrf, enum lsp_types_t type,
+ 		nhlfe_del(nhlfe);
+ 
+ 		/* Free LSP entry if no other NHLFEs and not scheduled. */
+-		if (!lsp->nhlfe_list
+-		    && !CHECK_FLAG(lsp->flags, LSP_FLAG_SCHEDULED)) {
+-			if (IS_ZEBRA_DEBUG_MPLS)
+-				zlog_debug("Free LSP in-label %u flags 0x%x",
+-					   lsp->ile.in_label, lsp->flags);
+-
+-			lsp = hash_release(lsp_table, &lsp->ile);
+-			if (lsp)
+-				XFREE(MTYPE_LSP, lsp);
+-		}
++		zebra_gc_lsp(lsp);
+ 	}
+ 	return 0;
+ }
+diff --git a/zebra/zebra_mpls.h b/zebra/zebra_mpls.h
+index 65204a6..7e75e9a 100644
+--- a/zebra/zebra_mpls.h
++++ b/zebra/zebra_mpls.h
+@@ -134,10 +134,20 @@ struct zebra_lsp_t_ {
+ #define LSP_FLAG_SCHEDULED        (1 << 0)
+ #define LSP_FLAG_INSTALLED        (1 << 1)
+ #define LSP_FLAG_CHANGED          (1 << 2)
++#define LSP_UPDATE_FPM            (1 << 3)
++#define LSP_SENT_TO_FPM           (1 << 4)
+ 
+ 	/* Address-family of NHLFE - saved here for delete. All NHLFEs */
+ 	/* have to be of the same AF */
+ 	uint8_t addr_family;
++
++	/*
++	 * Linkage to put lsp on the FPM processing queue.
++	 */
++	TAILQ_ENTRY(zebra_lsp_t_) fpm_q_entries;
++
++	/* Back pointer to LSP table */
++	struct hash *lsp_table;
+ };
+ 
+ /*
+@@ -362,6 +372,11 @@ void zebra_mpls_print_lsp_table(struct vty *vty, struct zebra_vrf *zvrf,
+  */
+ int zebra_mpls_write_lsp_config(struct vty *vty, struct zebra_vrf *zvrf);
+ 
++/*
++ * Get sorted list of LSPs
++ */
++struct list *zebra_mpls_get_sorted_lsp_table(struct zebra_vrf *zvrf);
++
+ /*
+  * Called when VRF becomes inactive, cleans up information but keeps
+  * the table itself.
+@@ -392,6 +407,11 @@ void zebra_mpls_init(void);
+  */
+ void zebra_mpls_vty_init(void);
+ 
++/*
++ * Garbage collect deletion of LSP
++ */
++int zebra_gc_lsp(zebra_lsp_t *lsp);
++
+ /* Inline functions. */
+ 
+ /*
+@@ -519,6 +539,9 @@ static inline int mpls_should_lsps_be_processed(struct zebra_vrf *zvrf)
+ 	return ((zvrf->mpls_flags & MPLS_FLAG_SCHEDULE_LSPS) ? 1 : 0);
+ }
+ 
++DECLARE_HOOK(lsp_update, (zebra_lsp_t *lsp, const char *reason),
++	     (lsp, reason))
++
+ /* Global variables. */
+ extern int mpls_enabled;
+ 
