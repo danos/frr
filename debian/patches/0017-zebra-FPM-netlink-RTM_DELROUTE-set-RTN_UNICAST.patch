@@ -9,17 +9,19 @@ the case today).
  zebra/zebra_fpm_netlink.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
---- frr.orig/zebra/zebra_fpm_netlink.c
-+++ frr/zebra/zebra_fpm_netlink.c
-@@ -319,6 +319,7 @@ static int netlink_route_info_fill(netli
- 	if (zvrf)
- 		ri->rtm_table = zvrf->table_id;
+diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
+index dcfd797..b6c38f4 100644
+--- a/zebra/zebra_fpm_netlink.c
++++ b/zebra/zebra_fpm_netlink.c
+@@ -331,6 +331,7 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
+ 	ri->nlmsg_type = cmd;
+ 	ri->rtm_table = rib_table_info(rib_dest_table(dest))->table_id;
  	ri->rtm_protocol = RTPROT_UNSPEC;
 +	ri->rtm_type = RTN_UNICAST;
  
  	/*
  	 * An RTM_DELROUTE need not be accompanied by any nexthops,
-@@ -334,7 +335,6 @@ static int netlink_route_info_fill(netli
+@@ -346,7 +347,6 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
  	}
  
  	ri->rtm_protocol = netlink_proto_from_route_type(re->type);
