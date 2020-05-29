@@ -1,3 +1,174 @@
+frr (7.2.1-0vyatta1) unstable; urgency=medium
+
+  [ SumitAgarwal123 ]
+  * bfdd: Fixing coredump in log
+
+  [ Philippe Guibert ]
+  * bfdd: upon vrf disable, unlink bfd session with vrf
+
+  [ Rafael Zalamena ]
+  * bfdd: disable sockets polling before closing it
+  * bfdd: set session down after disabling it
+  * bfdd: simplify session observers code
+  * bfdd: don't allow link-local without interface
+
+  [ Donald Sharp ]
+  * bgpd: Soft reconfig-in should find the right bgp_path_info
+  * bgpd: AS paths are uint32_t instead of integers
+  * bgpd: Ensure that struct prefix_rd rd is zero'ed out
+  * bgpd: When creating extra from stack ensure it is zero'ed out
+  * lib: Fix read beyond end of data structure
+
+  [ Rafael Zalamena ]
+  * bfdd: bind VRF sockets to devices
+
+  [ Stephen Worley ]
+  * lib: Use correct if compare function in tree proto
+  * lib: Don't add/del from name tree if name isnt set
+
+  [ Donatas Abraitis ]
+  * bgpd: Keep the session down if maximum-prefix is reached
+  * tests: Remove sleep from test_bgp_maximum_prefix_invalid_update
+
+  [ Emanuele Di Pascale ]
+  * bgpd: fix include path for bgp_bmp_clippy.c
+
+  [ Don Slice ]
+  * bgpd: remove error message for unkown afi/safi combination
+
+  [ Donatas Abraitis ]
+  * bgpd: Override peer's TTL only if peer-group is configured with TTL
+  * nhrp: Make sure `no ip nhrp map <something>` works as expected
+  * doc: Update documentation for access-list with sequence numbers
+  * bgpd: Do not send next-hop as :: in MP_REACH_NLRI if no link-local exists
+  * doc: redistribute vpn --> redistribute vnc
+  * doc: Add redistribute vnc-direct command
+
+  [ Radhika Mahankali ]
+  * ospf: BFD down not tearing down OSPF adjacency for point-to-point network
+
+  [ Mark Stapp ]
+  * lib: Remove include of deprecated sysctl.h
+
+  [ Renato Westphal ]
+  * ldpd: add missing sanity check in the parsing of label messages
+
+  [ Donatas Abraitis ]
+  * bgpd: Rework BGP dampening to be per AFI/SAFI
+  * doc: Append documentation for `bgp dampening` command
+
+  [ Donald Sharp ]
+  * pimd: Dissallow obvious addresses from being the RP
+  * pimd: Create pimreg interface when we start any interface config
+
+  [ Mitch Skiba ]
+  * bgpd: Fix per afi/safi addpath peer counting
+
+  [ Martin Winter ]
+  * snapcraft: Add vrrpd to the snapcraft package
+
+  [ Donald Sharp ]
+  * zebra: Router Advertisement socket mess up
+  * pimd: Fix possible read beyond end of data received
+  * pimd: Various buffer overflow reads and crashes
+
+  [ Quentin Young ]
+  * pimd: fix bsm buflen check to include pim hdr
+
+  [ Rafael Zalamena ]
+  * bfdd: fix multiple VRF handling
+
+  [ Donatas Abraitis ]
+  * bgpd: Reflect the distance in RIB when it is changed for an arbitrary afi/safi
+  * tests: Test if `distance bgp (1-255) (1-255) (1-255)` works
+  * bgpd: Notify "Peer De-configured" after entering 'no neighbor <neighbor> cmd'
+
+  [ Donald Sharp ]
+  * bgpd: Fix memory leak in json output of show commands
+  * bgpd: Prevent crash in bgp_table_range_lookup
+
+  [ Mark Stapp ]
+  * ospfd,eigrpd: don't take address of packed struct member
+
+  [ Donatas Abraitis ]
+  * bgpd: Autocomplete neighbor for clear bgp
+
+  [ Mark Stapp ]
+  * zebra: capture dplane plugin flags
+
+  [ Mahdi Varasteh ]
+  * lib: set entry to xpath in if_update_to_new_vrf
+
+  [ Mark Stapp ]
+  * zebra: use correct state when installing evpn macs
+
+  [ Donatas Abraitis ]
+  * tests: Test if `ip` and `fqdn` are included in `show [ip] bgp json`
+  * bgpd: Show `ip` and `fqdn` in json output for `show [ip] bgp <route> json`
+
+  [ Mark Stapp ]
+  * tests: fix endian bug in test_typelist
+
+  [ Donatas Abraitis ]
+  * tests: Test if eBGP policy is not applied to iBGP peers
+  * bgpd: Do not apply eBGP policy for iBGP peers
+  * bgpd: Make sure we can use `no bgp listen range ...`
+
+  [ Hiroki Shirokura ]
+  * bgpd: fix large route-distinguisher's format
+
+  [ Lou Berger ]
+  * topotest: bgp_l3vpn_to_bgp_vrf allow for different interface output
+
+  [ David Lamparter ]
+  * doc: rename man pages to frr-*
+  * ospfclient: don't install man page
+
+  [ Quentin Young ]
+  * zebra: use correct attr size for netlink enc
+  * zebra: check pbr rule msg for correct afi
+  * lib: fix ifindex comparison overflow
+  * zebra: disallow negative rtadv intvl, fix overflow
+  * zebra: ensure ipset name is null terminated
+  * zebra: fix iptable memleak, fix free funcs
+  * zebra: null terminate interface name from wire
+  * zebra: fix multiple bfd buffer issues
+  * zebra: reject ingress packets that are too large
+  * zebra: fix undefined bitshifts in netlink stuff
+  * zebra: free ptm message on error
+  * zebra: fix ptm heap double free
+  * bgpd: fix unaligned access to addpath id
+  * bgpd: avoid memcmp(NULL, NULL)
+  * zebra: fix bfd deregister message memleak
+  * zebra: bfd message handling cleanup foo
+  * bgpd: fix memory leak when parsing capabilities
+
+  [ Mitchell Skiba ]
+  * bgpd: add addpath ID to adj_out tree sort
+
+  [ Santosh P K ]
+  * bgpd: fix unaligned access to addpath id
+
+  [ Quentin Young ]
+  * bgpd: remove extra ecom attr ptr increment
+  * bgpd: use safe functions to work with ecom attrs
+  * bgpd: fix heap buffer overflow in lcom -> str enc
+  * bgpd: fix bad bounds check for addpath in nlri
+  * bgpd: ensure transit ptr is nulled on free
+  * bgpd: clean up attribute parsing state before ret
+  * lib: fix heap buf overflow when adding prefix orf
+  * bgpd: remove bgp_attr_dup
+  * bgpd: more attribute parsing cleanup & paranoia
+  * ospfd: fix misplaced trust in ip header length
+  * ospfd: sizeof(pointer) -> sizeof(pointed-at)
+  * pimd: fix missing igmp mtrace length check
+  * pimd: readd iph length checks
+
+  [ Martin Winter ]
+  * FRRouting Release 7.2.1 (Maintenance Release)
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Fri, 29 May 2020 15:11:28 +0100
+
 frr (7.2-0vyatta2) unstable; urgency=medium
 
   * Import missing patches from frr-vyatta-6.0
