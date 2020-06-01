@@ -1,8 +1,15 @@
-frr (7.3-0vyatta1) stable; urgency=medium
+frr (7.3-0vyatta1) UNRELEASED; urgency=medium
 
-  * DANOS import
+  [ kaushik ]
+  * FRRouting Release 7.3 Integration with DANOS
 
- -- Vyatta Package Maintainers <DL-vyatta-help@att.com>  Tue, 21 Apr 2020 19:36:50 +0200
+  [ Duncan Eastoe ]
+  * Add debian/gbp.conf
+  * Update debian/control for DANOS builds
+  * Reduce diff in frr-reload-running-cfg.patch
+  * Drop frr-reload-ldp.patch
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Mon, 01 Jun 2020 16:37:52 +0100
 
 frr (7.3-0) testing; urgency=medium
 
