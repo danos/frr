@@ -16,11 +16,11 @@ deferred deletion of LSPs when queued for update.
  7 files changed, 679 insertions(+), 126 deletions(-)
 
 diff --git a/zebra/rt_netlink.c b/zebra/rt_netlink.c
-index 2abcd6e..b116426 100644
+index 663d5c2..5ef26bd 100644
 --- a/zebra/rt_netlink.c
 +++ b/zebra/rt_netlink.c
-@@ -77,12 +77,6 @@ static vlanid_t filter_vlan = 0;
- 
+@@ -81,12 +81,6 @@ static vlanid_t filter_vlan = 0;
+  */
  static bool supports_nh;
  
 -struct gw_family_t {
@@ -32,7 +32,7 @@ index 2abcd6e..b116426 100644
  static const char ipv4_ll_buf[16] = "169.254.0.1";
  static struct in_addr ipv4_ll;
  
-@@ -147,70 +141,6 @@ static inline int is_selfroute(int proto)
+@@ -158,70 +152,6 @@ static inline int is_selfroute(int proto)
  	return 0;
  }
  

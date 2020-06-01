@@ -7,12 +7,12 @@ configuration displays it in dotted format.
 Call ospf_area_display_format_set() for area range command,
 as it is done for other variants.
 ---
- ospfd/ospf_vty.c | 2 ++
+ ospfd/ospf_vty.c |    2 ++
  1 file changed, 2 insertions(+)
 
---- frr.orig/ospfd/ospf_vty.c
-+++ frr/ospfd/ospf_vty.c
-@@ -689,6 +689,8 @@ DEFUN (ospf_area_range,
+--- a/ospfd/ospf_vty.c
++++ b/ospfd/ospf_vty.c
+@@ -700,6 +700,8 @@ DEFUN (ospf_area_range,
  	str2prefix_ipv4(argv[idx_ipv4_prefixlen]->arg, &p);
  
  	ospf_area_range_set(ospf, area_id, &p, OSPF_AREA_RANGE_ADVERTISE);

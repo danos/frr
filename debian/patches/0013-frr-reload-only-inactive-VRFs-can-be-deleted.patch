@@ -7,12 +7,12 @@ Attempting 'no vrf' to remove vrf config fails with error:
 Handle the same way as interfaces: delete the submode commands
 rather than the vrf itself.
 ---
- tools/frr-reload.py | 5 +++++
+ tools/frr-reload.py |    5 +++++
  1 file changed, 5 insertions(+)
 
---- frr.orig/tools/frr-reload.py
-+++ frr/tools/frr-reload.py
-@@ -1086,6 +1086,11 @@ def compare_context_objects(newconf, run
+--- a/tools/frr-reload.py
++++ b/tools/frr-reload.py
+@@ -1039,6 +1039,11 @@ def compare_context_objects(newconf, run
                  for line in running_ctx.lines:
                      lines_to_del.append((running_ctx_keys, line))
  
