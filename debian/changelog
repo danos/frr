@@ -1,3 +1,99 @@
+frr (7.3.1-0vyatta1) unstable; urgency=medium
+
+  [ Mark Stapp ]
+  * zebra: fix missing route-advert stubs
+
+  [ Donald Sharp ]
+  * bgpd: Update failed reason to distinguish some NHT scenarios
+
+  [ Donatas Abraitis ]
+  * bgpd: Show the real reason why the peer is failed
+  * bgpd: Format properly `show bgp summary failed`
+
+  [ Mark Stapp ]
+  * zebra: add config to disable use of kernel nexthops
+
+  [ Donald Sharp ]
+  * yang: Partially revert code to restore functionality
+
+  [ Martin Winter ]
+  * tests: Make topotest working on different locale
+  * tests: fix check for nhid in ipv6 table output
+
+  [ Stephen Worley ]
+  * zebra: abstract route src determiniation into func
+  * zebra: determine src when using nexthop objects
+  * zebra: free unhashable (dup) NHEs via ID table cleanup
+
+  [ David Lamparter ]
+  * bgpd, ospfd, ospf6d: long is not bool :(
+
+  [ Stephen Worley ]
+  * zebra: handle NHG in NHG dataplane group conversion
+  * zebra: don't add ID to kernel nh_grp if not installed/queued
+  * zebra: add debug for duplicate NH in dataplane array conversion
+  * zebra: set valid on re->nhe directly in nexthop_active_update()
+  * zebra: properly set the NEXTHOP_GROUP_VALID flag
+  * zebra: break if duplicate nexthop found in nhe2grp
+  * zebra: don't created connected if duplicate depend
+  * zebra: reset nexthop pointer in zread of nexthops
+  * zebra: add null check before connecting recursive depend
+
+  [ Renato Westphal ]
+  * ldpd: don't drop packets coming through a broken LSP
+
+  [ Don Slice ]
+  * ospf6d: stop looping thru same Inter-Area Router LSAs
+
+  [ Ruben Kerkhof ]
+  * ldpd: Fix linking error on Fedora Rawhide with GCC 10
+  * tests: fix build with GCC 10
+  * ldpd: fix another linking issue with GCC-10
+  * ldpd: remove multiple definitions of thread_master
+
+  [ Tomas Korbar ]
+  * pimd: Make frr able to be built by gcc 10
+
+  [ Ruben Kerkhof ]
+  * bgpd: remove unused variable
+  * babeld: fix build on Fedora Rawhide
+
+  [ Donald Sharp ]
+  * babeld: GCC complaining about no return in non-void function
+
+  [ Ruben Kerkhof ]
+  * vrrpd: fix build on Fedora Rawhide
+
+  [ Donatas Abraitis ]
+  * bgpd: Show hostname in `show [ip] bgp ...` only if nexthop is connected
+  * bgpd: Add a sanitify check for bgp_nexthop_cache against NULL
+  * bgpd: Do not discard an UPDATE if the global nexthop is set to ::
+  * tests: Check if the right next-hop is shown (bgp_show_ip_bgp_fqdn)
+
+  [ Donald Sharp ]
+  * Revert "vtysh: fix searching commands in parent nodes"
+
+  [ Donatas Abraitis ]
+  * lib: Convert access_list_empty to bool
+  * lib: Delete the entire access-list only if there are no more entries
+
+  [ Stephen Worley ]
+  * zebra: force off kernel NHG install with netns VRFs
+
+  [ Donald Sharp ]
+  * bgpd: bools use `true/false` not `TRUE/FALSE`
+
+  [ Josh Cox ]
+  * bgpd: Check to ensure community attributes exist before freeing them
+
+  [ David Lamparter ]
+  * FRRouting release 7.3.1
+
+  [ Duncan Eastoe ]
+  * Refresh patches
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Mon, 01 Jun 2020 17:13:51 +0100
+
 frr (7.3-0vyatta1) unstable; urgency=medium
 
   [ kaushik ]
