@@ -1,4 +1,3 @@
-net-snmp-add-context-name-to-findVar.patch
 frr-service.patch
 syslog_debug.patch
 zebra_interface_speed.patch
