@@ -16,7 +16,7 @@ to be configured as they can be for other area commands.
 
 --- a/ospf6d/ospf6_area.c
 +++ b/ospf6d/ospf6_area.c
-@@ -380,22 +380,6 @@ void ospf6_area_show(struct vty *vty, st
+@@ -379,22 +379,6 @@ void ospf6_area_show(struct vty *vty, st
  		vty_out(vty, "SPF has not been run\n");
  }
  

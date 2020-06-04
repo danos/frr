@@ -11,7 +11,7 @@ the case today).
 
 --- a/zebra/zebra_fpm_netlink.c
 +++ b/zebra/zebra_fpm_netlink.c
-@@ -331,6 +331,7 @@ static int netlink_route_info_fill(netli
+@@ -325,6 +325,7 @@ static int netlink_route_info_fill(netli
  	ri->nlmsg_type = cmd;
  	ri->rtm_table = rib_table_info(rib_dest_table(dest))->table_id;
  	ri->rtm_protocol = RTPROT_UNSPEC;
@@ -19,11 +19,11 @@ the case today).
  
  	/*
  	 * An RTM_DELROUTE need not be accompanied by any nexthops,
-@@ -346,7 +347,6 @@ static int netlink_route_info_fill(netli
+@@ -339,7 +340,6 @@ static int netlink_route_info_fill(netli
  	}
  
  	ri->rtm_protocol = netlink_proto_from_route_type(re->type);
 -	ri->rtm_type = RTN_UNICAST;
  	ri->metric = &re->metric;
  
- 	for (ALL_NEXTHOPS_PTR(re->nhe->nhg, nexthop)) {
+ 	for (ALL_NEXTHOPS(re->nhe->nhg, nexthop)) {

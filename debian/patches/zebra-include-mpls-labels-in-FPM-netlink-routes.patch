@@ -6,8 +6,10 @@ Subject: zebra: include mpls labels in FPM netlink routes
  zebra/zebra_fpm_netlink.c | 53 +++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 53 insertions(+)
 
---- frr.orig/zebra/zebra_fpm_netlink.c
-+++ frr/zebra/zebra_fpm_netlink.c
+diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
+index 00909df..5a14ebf 100644
+--- a/zebra/zebra_fpm_netlink.c
++++ b/zebra/zebra_fpm_netlink.c
 @@ -26,6 +26,9 @@
  
  #ifdef HAVE_NETLINK
@@ -18,7 +20,7 @@ Subject: zebra: include mpls labels in FPM netlink routes
  #include "log.h"
  #include "rib.h"
  #include "vty.h"
-@@ -157,6 +160,8 @@ struct fpm_nh_encap_info_t {
+@@ -152,6 +155,8 @@ struct fpm_nh_encap_info_t {
  typedef struct netlink_nh_info_t_ {
  	uint32_t if_index;
  	union g_addr *gateway;
@@ -27,7 +29,7 @@ Subject: zebra: include mpls labels in FPM netlink routes
  
  	/*
  	 * Information from the struct nexthop from which this nh was
-@@ -246,6 +251,24 @@ static int netlink_route_info_add_nh(net
+@@ -241,6 +246,24 @@ static int netlink_route_info_add_nh(netlink_route_info_t *ri,
  		}
  	}
  
@@ -52,8 +54,8 @@ Subject: zebra: include mpls labels in FPM netlink routes
  	/*
  	 * We have a valid nhi. Copy the structure over to the route_info.
  	 */
-@@ -456,6 +479,19 @@ static int netlink_route_info_encode(net
- 			}
+@@ -445,6 +468,19 @@ static int netlink_route_info_encode(netlink_route_info_t *ri, char *in_buf,
+ 			break;
  		}
  
 +		if (nhi->num_labels) {
@@ -72,8 +74,8 @@ Subject: zebra: include mpls labels in FPM netlink routes
  		goto done;
  	}
  
-@@ -511,6 +547,21 @@ static int netlink_route_info_encode(net
- 			}
+@@ -497,6 +533,21 @@ static int netlink_route_info_encode(netlink_route_info_t *ri, char *in_buf,
+ 			break;
  		}
  
 +		if (nhi->num_labels) {
@@ -94,7 +96,7 @@ Subject: zebra: include mpls labels in FPM netlink routes
  		rtnh = RTNH_NEXT(rtnh);
  	}
  
-@@ -553,6 +604,8 @@ static void zfpm_log_route_info(netlink_
+@@ -539,6 +590,8 @@ static void zfpm_log_route_info(netlink_route_info_t *ri, const char *label)
  			   nexthop_type_to_str(nhi->type),
  			   fpm_nh_encap_type_to_str(nhi->encap_info.encap_type)
  			   );

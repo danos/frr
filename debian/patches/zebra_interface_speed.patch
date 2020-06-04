@@ -3,14 +3,14 @@ Date: Wed, 1 Aug 2018 11:20:07 +0100
 Subject: Zebra interface speed
 
 ---
-zebra/interface.c | 3 +++
-1 file changed, 3 insertions(+)
+ zebra/interface.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/zebra/interface.c b/zebra/interface.c
-index bcb833b8d..990af1add 100644
+index 9a248ba..d70f9c4 100644
 --- a/zebra/interface.c
 +++ b/zebra/interface.c
-@@ -1024,6 +1024,9 @@ void if_up(struct interface *ifp)
+@@ -1034,6 +1034,9 @@ void if_up(struct interface *ifp)
  	zif->up_count++;
  	quagga_timestamp(2, zif->up_last, sizeof(zif->up_last));
  

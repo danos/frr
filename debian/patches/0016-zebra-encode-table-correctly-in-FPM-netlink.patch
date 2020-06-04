@@ -10,10 +10,10 @@ It should be encoded the same way as when sent to kernel.
  1 file changed, 1 insertion(+), 4 deletions(-)
 
 diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
-index def3fd7..dcfd797 100644
+index 03a57b6..673dbc1 100644
 --- a/zebra/zebra_fpm_netlink.c
 +++ b/zebra/zebra_fpm_netlink.c
-@@ -322,7 +322,6 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
+@@ -316,7 +316,6 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
  				   rib_dest_t *dest, struct route_entry *re)
  {
  	struct nexthop *nexthop;
@@ -21,7 +21,7 @@ index def3fd7..dcfd797 100644
  
  	memset(ri, 0, sizeof(*ri));
  
-@@ -330,9 +329,7 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
+@@ -324,9 +323,7 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
  	ri->af = rib_dest_af(dest);
  
  	ri->nlmsg_type = cmd;
