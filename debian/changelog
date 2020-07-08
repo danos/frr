@@ -1,3 +1,9 @@
+frr (7.3.1-0vyatta2) unstable; urgency=medium
+
+  * Drop net-snmp-add-context-name-to-findVar.patch
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 08 Jul 2020 11:12:31 +0100
+
 frr (7.3.1-0vyatta1) unstable; urgency=medium
 
   [ Mark Stapp ]
