@@ -1,4 +1,3 @@
-frr-service.patch
 syslog_debug.patch
 zebra_interface_speed.patch
 frr-reload-running-cfg.patch

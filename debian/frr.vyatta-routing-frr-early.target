@@ -1,5 +1,0 @@
-[Unit]
-Description=Vyatta Routing Service (early)
-Before=vyatta-routing-frr.target
-RefuseManualStart=true
-RefuseManualStop=true
