@@ -1,4 +1,3 @@
-frr-service.patch
 syslog_debug.patch
 zebra_interface_speed.patch
 ospf_virtual_authenticate.patch
