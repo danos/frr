@@ -1,8 +1,13 @@
-frr (7.4-0vyatta1) UNRELEASED; urgency=medium
+frr (7.4-0vyatta1) unstable; urgency=medium
 
-  * 
+  * debian: Import packaging from frr-7.3.1-0vyatta3
+  * debian: Drop frr-reload-running-cfg.patch
+  * debian: Refresh zebra-send-mpls-routes-to-FPM.patch
+  * debian: Refresh syslog_debug.patch
+  * debian: Drop custom targets and frr-service.patch
+  * debian: General patch refresh
 
- -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 08 Jul 2020 11:23:12 +0100
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Fri, 24 Jul 2020 12:55:03 +0100
 
 frr (7.4-0) testing; urgency=medium
 
