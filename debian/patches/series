@@ -12,3 +12,4 @@ zebra-send-mpls-routes-to-FPM.patch
 0015-zebra-Add-table_id-to-rib_table_info_t.patch
 0016-zebra-encode-table-correctly-in-FPM-netlink.patch
 0017-zebra-FPM-netlink-RTM_DELROUTE-set-RTN_UNICAST.patch
+frr-reload-log-level.patch
