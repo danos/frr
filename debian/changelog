@@ -1,3 +1,11 @@
+frr (7.3.1-0vyatta3) UNRELEASED; urgency=medium
+
+  * tools: frr-reload: more detailed log level control
+  * tools: frr-reload: catch and log VtyshMarkException
+  * tools: frr-reload: log exclusively through logger
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 15 Jul 2020 17:23:35 +0100
+
 frr (7.3.1-0vyatta2) unstable; urgency=medium
 
   * Drop net-snmp-add-context-name-to-findVar.patch

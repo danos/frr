@@ -14,3 +14,4 @@ zebra-send-mpls-routes-to-FPM.patch
 0017-zebra-FPM-netlink-RTM_DELROUTE-set-RTN_UNICAST.patch
 frr-reload-log-level.patch
 frr-reload-catch-and-log-VtyshMarkException.patch
+frr-reload-use-logger-exclusively.patch
