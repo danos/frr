@@ -1,3 +1,9 @@
+frr (7.3.1-0vyatta4) unstable; urgency=medium
+
+  * debian: Drop custom targets and frr-service.patch
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Tue, 28 Jul 2020 12:17:33 +0100
+
 frr (7.3.1-0vyatta3) unstable; urgency=medium
 
   * tools: frr-reload: more detailed log level control
