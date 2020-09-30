@@ -1,3 +1,9 @@
+frr (7.4-0vyatta2) unstable; urgency=medium
+
+  * zebra: fix FPM abort on blackhole/unreach/prohibit
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 30 Sep 2020 09:30:17 +0100
+
 frr (7.4-0vyatta1) unstable; urgency=medium
 
   * debian: Import packaging from frr-7.3.1-0vyatta3
