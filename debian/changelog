@@ -1,3 +1,9 @@
+frr (7.3.1-0vyatta5) unstable; urgency=medium
+
+  * zebra: fix FPM abort on blackhole/unreach/prohibit
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 30 Sep 2020 09:28:28 +0100
+
 frr (7.3.1-0vyatta4) unstable; urgency=medium
 
   * debian: Drop custom targets and frr-service.patch
