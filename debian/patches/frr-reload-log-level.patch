@@ -15,10 +15,10 @@ Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
  1 file changed, 11 insertions(+), 7 deletions(-)
 
 diff --git a/tools/frr-reload.py b/tools/frr-reload.py
-index 8839a6a..80bd7fb 100755
+index f4eb840..391801a 100755
 --- a/tools/frr-reload.py
 +++ b/tools/frr-reload.py
-@@ -1138,7 +1138,11 @@ if __name__ == '__main__':
+@@ -1128,7 +1128,11 @@ if __name__ == '__main__':
      group = parser.add_mutually_exclusive_group(required=True)
      group.add_argument('--reload', action='store_true', help='Apply the deltas', default=False)
      group.add_argument('--test', action='store_true', help='Show the deltas', default=False)
@@ -31,7 +31,7 @@ index 8839a6a..80bd7fb 100755
      parser.add_argument('--stdout', action='store_true', help='Log to STDOUT', default=False)
      parser.add_argument('filename', help='Location of new frr config file')
      parser.add_argument('--overwrite', action='store_true', help='Overwrite frr.conf with running config output', default=False)
-@@ -1153,8 +1157,7 @@ if __name__ == '__main__':
+@@ -1143,8 +1147,7 @@ if __name__ == '__main__':
      # For --test log to stdout
      # For --reload log to /var/log/frr/frr-reload.log
      if args.test or args.stdout:
@@ -41,7 +41,7 @@ index 8839a6a..80bd7fb 100755
  
          # Color the errors and warnings in red
          logging.addLevelName(logging.ERROR, "\033[91m  %s\033[0m" % logging.getLevelName(logging.ERROR))
-@@ -1165,7 +1168,6 @@ if __name__ == '__main__':
+@@ -1155,7 +1158,6 @@ if __name__ == '__main__':
              os.makedirs('/var/log/frr/')
  
          logging.basicConfig(filename='/var/log/frr/frr-reload.log',
@@ -49,7 +49,7 @@ index 8839a6a..80bd7fb 100755
                              format='%(asctime)s %(levelname)5s: %(message)s')
  
      # argparse should prevent this from happening but just to be safe...
-@@ -1173,6 +1175,11 @@ if __name__ == '__main__':
+@@ -1163,6 +1165,11 @@ if __name__ == '__main__':
          raise Exception('Must specify --reload or --test')
      log = logging.getLogger(__name__)
  
@@ -61,7 +61,7 @@ index 8839a6a..80bd7fb 100755
      # Verify the new config file is valid
      if not os.path.isfile(args.filename):
          msg = "Filename %s does not exist" % args.filename
-@@ -1226,9 +1233,6 @@ if __name__ == '__main__':
+@@ -1216,9 +1223,6 @@ if __name__ == '__main__':
          log.error(msg)
          sys.exit(1)
  

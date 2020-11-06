@@ -25,7 +25,7 @@ Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
  1 file changed, 18 insertions(+), 23 deletions(-)
 
 diff --git a/tools/frr-reload.py b/tools/frr-reload.py
-index 68d8e5d..49fc12d 100755
+index bc9baa1..e481cb6 100755
 --- a/tools/frr-reload.py
 +++ b/tools/frr-reload.py
 @@ -62,7 +62,6 @@ log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ index 68d8e5d..49fc12d 100755
  class Context(object):
  
      """
-@@ -1118,14 +1117,11 @@ def vtysh_config_available(bindir, confdir):
+@@ -1108,14 +1107,11 @@ def vtysh_config_available(bindir, confdir):
          output = subprocess.check_output(cmd).strip()
  
          if 'VTY configuration is locked by other VTY' in output.decode('utf-8'):
@@ -52,7 +52,7 @@ index 68d8e5d..49fc12d 100755
          return False
  
      return True
-@@ -1180,38 +1176,39 @@ if __name__ == '__main__':
+@@ -1170,38 +1166,39 @@ if __name__ == '__main__':
      else:
          log.setLevel(args.log_level.upper())
  
@@ -107,7 +107,7 @@ index 68d8e5d..49fc12d 100755
          sys.exit(1)
  
      # Verify that 'service integrated-vtysh-config' is configured
-@@ -1228,9 +1225,7 @@ if __name__ == '__main__':
+@@ -1218,9 +1215,7 @@ if __name__ == '__main__':
                      break
  
      if not service_integrated_vtysh_config and not args.daemon:
