@@ -1,3 +1,11 @@
+frr (7.3.1-0vyatta6) unstable; urgency=medium
+
+  * debian: Drop frr-reload.py patch adding exit-vrf
+  * debian: Drop patch stopping frr-reload VRF delete
+  * debian: Refresh patches
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Thu, 12 Nov 2020 16:38:52 +0000
+
 frr (7.3.1-0vyatta5) unstable; urgency=medium
 
   * zebra: fix FPM abort on blackhole/unreach/prohibit
