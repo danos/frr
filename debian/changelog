@@ -1,3 +1,9 @@
+frr (7.4-0vyatta4) unstable; urgency=medium
+
+  * debian: drop syslog_debug.patch
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Mon, 16 Nov 2020 13:20:13 +0000
+
 frr (7.4-0vyatta3) unstable; urgency=medium
 
   * debian: Drop frr-reload.py patch adding exit-vrf
