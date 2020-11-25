@@ -1,0 +1,34 @@
+From: George Wilkie <george.wilkie@intl.att.com>
+Date: Thu, 8 Nov 2018 16:43:02 +0000
+Subject: zebra: encode table correctly in FPM netlink
+
+The rtm_table was being populated with the vrf-id
+instead of the kernel table-id.
+It should be encoded the same way as when sent to kernel.
+---
+ zebra/zebra_fpm_netlink.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
+index 03a57b6..673dbc1 100644
+--- a/zebra/zebra_fpm_netlink.c
++++ b/zebra/zebra_fpm_netlink.c
+@@ -316,7 +316,6 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
+ 				   rib_dest_t *dest, struct route_entry *re)
+ {
+ 	struct nexthop *nexthop;
+-	struct zebra_vrf *zvrf;
+ 
+ 	memset(ri, 0, sizeof(*ri));
+ 
+@@ -324,9 +323,7 @@ static int netlink_route_info_fill(netlink_route_info_t *ri, int cmd,
+ 	ri->af = rib_dest_af(dest);
+ 
+ 	ri->nlmsg_type = cmd;
+-	zvrf = rib_dest_vrf(dest);
+-	if (zvrf)
+-		ri->rtm_table = zvrf->table_id;
++	ri->rtm_table = rib_table_info(rib_dest_table(dest))->table_id;
+ 	ri->rtm_protocol = RTPROT_UNSPEC;
+ 
+ 	/*
