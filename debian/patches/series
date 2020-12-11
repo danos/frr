@@ -6,3 +6,4 @@ frr-reload_fpm_single_line_ctx.patch
 dplane_fpm_nl-queue-peak-counter-never-increments.patch
 zebra-dplane-API-to-get-provider-output-q-length.patch
 zebra-routes-stuck-with-q-when-using-dplane-FPM.patch
+frr-maximum-paths-overflow-clear.patch
