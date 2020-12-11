@@ -6,12 +6,14 @@ Always initialise rtm_type to RTN_UNICAST to ensure rtm_type is not
 RTN_UNSPEC when re == NULL and cmd == RTM_DELROUTE (which is always
 the case today).
 ---
- zebra/zebra_fpm_netlink.c |    2 +-
+ zebra/zebra_fpm_netlink.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/zebra/zebra_fpm_netlink.c b/zebra/zebra_fpm_netlink.c
+index 2c07413..63162f5 100644
 --- a/zebra/zebra_fpm_netlink.c
 +++ b/zebra/zebra_fpm_netlink.c
-@@ -325,6 +325,7 @@ static int netlink_route_info_fill(netli
+@@ -288,6 +288,7 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
  	ri->nlmsg_type = cmd;
  	ri->rtm_table = rib_table_info(rib_dest_table(dest))->table_id;
  	ri->rtm_protocol = RTPROT_UNSPEC;
@@ -19,7 +21,7 @@ the case today).
  
  	/*
  	 * An RTM_DELROUTE need not be accompanied by any nexthops,
-@@ -339,7 +340,6 @@ static int netlink_route_info_fill(netli
+@@ -302,7 +303,6 @@ static int netlink_route_info_fill(struct netlink_route_info *ri, int cmd,
  	}
  
  	ri->rtm_protocol = netlink_proto_from_route_type(re->type);
