@@ -11,3 +11,4 @@ zebra-fix-FPM-abort-on-blackhole-unreach-prohibit.patch
 frr-reload-log-level.patch
 frr-reload-catch-and-log-VtyshMarkException.patch
 frr-reload-use-logger-exclusively.patch
+frr-maximum-paths-overflow-clear.patch
