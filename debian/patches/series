@@ -2,5 +2,4 @@ zebra_interface_speed.patch
 ospf_virtual_authenticate.patch
 zebra-dplane-FPM-handle-LSP-install-update-delete.patch
 zebra-dplane-FPM-LSP-table-walk.patch
-0017-zebra-FPM-netlink-RTM_DELROUTE-set-RTN_UNICAST.patch
 frr-reload_fpm_single_line_ctx.patch
