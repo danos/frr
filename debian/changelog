@@ -1,3 +1,10 @@
+frr (7.4-0vyatta5) unstable; urgency=medium
+
+  [ Dewi Morgan ]
+  * bgpd: maximum prefix overflow peer reset
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 13 Jan 2021 18:10:12 +0000
+
 frr (7.4-0vyatta4) unstable; urgency=medium
 
   * debian: drop syslog_debug.patch
