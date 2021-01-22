@@ -1,8 +1,21 @@
-frr (7.5-0danos1) UNRELEASED; urgency=medium
+frr (7.5-0danos1) unstable; urgency=medium
 
-  *
+  [ Duncan Eastoe ]
+  * debian: import packaging from 7.4-0vyatta4
+  * debian: drop upstreamed patches
+  * Apply upstream dplane_fpm_nl LSP support as patches
+  * debian: general patch refresh
+  * frr-reload.py: treat "fpm" as single line context
+  * debian: drop FPM patch setting RTN_UNICAST on dels
+  * Fix routes stuck with 'q' when using dplane_fpm_nl
 
- -- Duncan Eastoe <duncan.eastoe@att.com>  Wed, 25 Nov 2020 15:18:37 +0000
+  [ Dewi Morgan ]
+  * bgpd: maximum prefix overflow peer reset
+
+  [ Duncan Eastoe ]
+  * zebra: set nlmsg_pid in netlink msgs sent by 'fpm'
+
+ -- Duncan Eastoe <duncan.eastoe@att.com>  Fri, 22 Jan 2021 13:14:39 +0000
 
 frr (7.5) RELEASED; urgency=medium
   [ FRRouting-Dev ]
