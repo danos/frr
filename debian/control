@@ -31,8 +31,8 @@ Build-Depends: bison,
                liblua5.3-dev <pkg.frr.lua>
 Standards-Version: 4.5.0.3
 Homepage: https://www.frrouting.org/
-Vcs-Browser: https://github.com/danos/frr/tree/danos/7.5
-Vcs-Git: https://github.com/danos/frr.git -b danos/7.5
+Vcs-Browser: https://github.com/danos/frr/tree/danos/7.6
+Vcs-Git: https://github.com/danos/frr.git -b danos/7.6
 
 Package: frr
 Architecture: linux-any
