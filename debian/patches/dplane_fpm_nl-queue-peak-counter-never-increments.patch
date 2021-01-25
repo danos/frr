@@ -1,0 +1,26 @@
+From: Duncan Eastoe <duncan.eastoe@att.com>
+Date: Fri, 11 Dec 2020 10:26:54 +0000
+Subject: dplane_fpm_nl: queue peak counter never increments
+
+The context queue length peak counter is always set to its current
+value, hence never increments.
+
+Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
+(cherry picked from commit 7545bda0a4b0114c6d73552fdbdce016f58572c0)
+---
+ zebra/dplane_fpm_nl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/zebra/dplane_fpm_nl.c b/zebra/dplane_fpm_nl.c
+index cd17cbf..a369e84 100644
+--- a/zebra/dplane_fpm_nl.c
++++ b/zebra/dplane_fpm_nl.c
+@@ -1466,7 +1466,7 @@ static int fpm_nl_process(struct zebra_dplane_provider *prov)
+ 			if (peak_queue < cur_queue)
+ 				atomic_store_explicit(
+ 					&fnc->counters.ctxqueue_len_peak,
+-					peak_queue, memory_order_relaxed);
++					cur_queue, memory_order_relaxed);
+ 			continue;
+ 		}
+ 

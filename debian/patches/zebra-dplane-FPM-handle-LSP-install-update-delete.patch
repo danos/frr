@@ -1,0 +1,72 @@
+From: Duncan Eastoe <duncan.eastoe@att.com>
+Date: Fri, 27 Nov 2020 15:45:35 +0000
+Subject: zebra: dplane FPM handle LSP install/update/delete
+
+Export netlink_lsp_msg_encoder() and use it to encode and send netlink
+messages concerning LSP updates to connected FPMs.
+
+Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
+(cherry picked from commit b300c8bbcff94018fd0dce2ce19cdb830a673a4f)
+---
+ zebra/dplane_fpm_nl.c      | 10 ++++++++++
+ zebra/rt_netlink.h         |  3 +++
+ zebra/zebra_mpls_netlink.c |  4 ++--
+ 3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/zebra/dplane_fpm_nl.c b/zebra/dplane_fpm_nl.c
+index 5bf4758..94a35a8 100644
+--- a/zebra/dplane_fpm_nl.c
++++ b/zebra/dplane_fpm_nl.c
+@@ -43,6 +43,7 @@
+ #include "zebra/debug.h"
+ #include "zebra/interface.h"
+ #include "zebra/zebra_dplane.h"
++#include "zebra/zebra_mpls.h"
+ #include "zebra/zebra_router.h"
+ #include "zebra/zebra_evpn.h"
+ #include "zebra/zebra_evpn_mac.h"
+@@ -790,6 +791,15 @@ static int fpm_nl_enqueue(struct fpm_nl_ctx *fnc, struct zebra_dplane_ctx *ctx)
+ 	case DPLANE_OP_LSP_INSTALL:
+ 	case DPLANE_OP_LSP_UPDATE:
+ 	case DPLANE_OP_LSP_DELETE:
++		rv = netlink_lsp_msg_encoder(ctx, nl_buf, sizeof(nl_buf));
++		if (rv <= 0) {
++			zlog_err("%s: netlink_lsp_msg_encoder failed", __func__);
++			return 0;
++		}
++
++		nl_buf_len += (size_t)rv;
++		break;
++
+ 	case DPLANE_OP_PW_INSTALL:
+ 	case DPLANE_OP_PW_UNINSTALL:
+ 	case DPLANE_OP_ADDR_INSTALL:
+diff --git a/zebra/rt_netlink.h b/zebra/rt_netlink.h
+index e1bb844..9ffb509 100644
+--- a/zebra/rt_netlink.h
++++ b/zebra/rt_netlink.h
+@@ -86,6 +86,9 @@ extern ssize_t netlink_nexthop_msg_encode(uint16_t cmd,
+ 					  const struct zebra_dplane_ctx *ctx,
+ 					  void *buf, size_t buflen);
+ 
++extern ssize_t netlink_lsp_msg_encoder(struct zebra_dplane_ctx *ctx, void *buf,
++				       size_t buflen);
++
+ extern int netlink_neigh_change(struct nlmsghdr *h, ns_id_t ns_id);
+ extern int netlink_macfdb_read(struct zebra_ns *zns);
+ extern int netlink_macfdb_read_for_bridge(struct zebra_ns *zns,
+diff --git a/zebra/zebra_mpls_netlink.c b/zebra/zebra_mpls_netlink.c
+index 3b2279c..ce7702b 100644
+--- a/zebra/zebra_mpls_netlink.c
++++ b/zebra/zebra_mpls_netlink.c
+@@ -28,8 +28,8 @@
+ #include "zebra/zebra_mpls.h"
+ #include "zebra/kernel_netlink.h"
+ 
+-static ssize_t netlink_lsp_msg_encoder(struct zebra_dplane_ctx *ctx, void *buf,
+-				       size_t buflen)
++ssize_t netlink_lsp_msg_encoder(struct zebra_dplane_ctx *ctx, void *buf,
++				size_t buflen)
+ {
+ 	int cmd;
+ 
