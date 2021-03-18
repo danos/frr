@@ -1,3 +1,11 @@
+frr (7.5.1-0danos1) UNRELEASED; urgency=medium
+
+  * debian: import packaging from 7.5-0danos1
+  * debian: drop patches
+  * debian: general patch refresh
+
+ -- Dewi Morgan <dewi.morgan@intl.att.com>  Thu, 18 Mar 2021 11:55:30 +0000
+
 frr (7.5.1-0) RELEASED; urgency=medium
   BABEL
     Fix connected route leak on change
