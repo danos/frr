@@ -1,0 +1,22 @@
+From: Patrick Ruddy <pruddy@vyatta.att-mail.com>
+Date: Wed, 1 Aug 2018 11:20:07 +0100
+Subject: Zebra interface speed
+
+---
+ zebra/interface.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/zebra/interface.c b/zebra/interface.c
+index d29f614..7b21b8d 100644
+--- a/zebra/interface.c
++++ b/zebra/interface.c
+@@ -1036,6 +1036,9 @@ void if_up(struct interface *ifp)
+ 	zif->up_count++;
+ 	quagga_timestamp(2, zif->up_last, sizeof(zif->up_last));
+ 
++	/* make sure interface speed is correct */
++	ifp->speed = kernel_get_speed(ifp, NULL);
++
+ 	/* Notify the protocol daemons. */
+ 	if (ifp->ptm_enable && (ifp->ptm_status == ZEBRA_PTM_STATUS_DOWN)) {
+ 		flog_warn(EC_ZEBRA_PTM_NOT_READY,

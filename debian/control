@@ -1,8 +1,7 @@
 Source: frr
 Section: net
 Priority: optional
-Maintainer: David Lamparter <equinox-debian@diac24.net>
-Uploaders: FRRouting-dev <dev@lists.frrouting.org>
+Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
 Build-Depends:
  autotools-dev,
  bison,
@@ -33,8 +32,8 @@ Build-Depends:
  texinfo (>= 4.7)
 Standards-Version: 4.4.1
 Homepage: https://www.frrouting.org/
-Vcs-Browser: https://github.com/FRRouting/frr/tree/debian/master
-Vcs-Git: https://github.com/FRRouting/frr.git -b debian/master
+Vcs-Browser: https://github.com/danos/frr/tree/danos/7.5.1
+Vcs-Git: https://github.com/danos/frr.git -b danos/7.5.1
 
 Package: frr
 Architecture: linux-any

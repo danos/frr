@@ -1,0 +1,123 @@
+From: Duncan Eastoe <duncan.eastoe@att.com>
+Date: Fri, 11 Dec 2020 11:07:59 +0000
+Subject: zebra: routes stuck with 'q' when using dplane FPM
+
+New work enqueued to the dplane_fpm_nl provider is initially de-queued
+and re-enqueued, in fpm_nl_process(), to be processed by the provider's
+own thread.
+
+After performing this initial de-queue/enqueue we return to
+dplane_thread_loop() and check the dplane_fpm_nl output queue for any
+work which has been completed.
+
+Since this work is being processed in another thread it is very likely
+that there will be some (or all) work still outstanding at this point.
+The dataplane thread finishes up any other tasks and then waits until
+it is next scheduled. In the meantime the dplane_fpm_nl thread is
+processing its work queue until completion.
+
+The issue arises here as the dataplane thread is not explicitly
+re-scheduled once dplane_fpm_nl has drained its work queue and
+populated its output queue with completed work.
+
+This completed work can sit in the output queue for an indeterminate
+period of time, depending upon when the dataplane thread is next
+scheduled for other work. If the RIB has reached a stable state then
+this could be a significant period of time. During this period zebra
+marks these routes as queued, even though they have actually been
+processed by all dataplane providers.
+
+An un-related RIB change which triggers a FIB update will result in
+the dataplane thread being scheduled and this completed work then
+being processed. At this point the routes will then no longer be
+marked as queued by zebra. However this new FIB update might itself
+then fall victim to the same scenario!
+
+We can observe the above behaviour in these detailed dplane logs.
+
+    11:24:47 zebra[7282]: dplane: incoming new work counter: 2
+    11:24:47 zebra[7282]: dplane enqueues 2 new work to provider 'Kernel'
+    11:24:47 zebra[7282]: dplane provider 'Kernel': processing
+    11:24:47 zebra[7282]: Dplane NEIGH_DISCOVER, ip 192.168.2.2, ifindex 9
+    11:24:47 zebra[7282]: Dplane NEIGH_DISCOVER, ip 192.168.2.2, ifindex 9
+    11:24:47 zebra[7282]: dplane dequeues 2 completed work from provider Kernel
+    11:24:47 zebra[7282]: dplane enqueues 2 new work to provider 'dplane_fpm_nl'
+    11:24:47 zebra[7282]: dplane dequeues 1 completed work from provider dplane_fpm_nl
+    11:24:47 zebra[7282]: dplane has 1 completed, 0 errors, for zebra main
+
+2 contexts (all incoming work) have been queued to dplane_fpm_nl - all good.
+1 completed context was de-queued, so there is outstanding work.
+
+    11:24:58 zebra[7282]: dplane: incoming new work counter: 2
+    11:24:58 zebra[7282]: dplane enqueues 2 new work to provider 'Kernel'
+    11:24:58 zebra[7282]: dplane provider 'Kernel': processing
+    11:24:58 zebra[7282]: ID (193) Dplane nexthop update ctx 0x55c429b6fed0 op NH_INSTALL
+    11:24:58 zebra[7282]: 0:5.5.5.5/32 Dplane route update ctx 0x55c429b79690 op ROUTE_INSTALL
+    11:24:58 zebra[7282]: dplane dequeues 2 completed work from provider Kernel
+    11:24:58 zebra[7282]: dplane enqueues 2 new work to provider 'dplane_fpm_nl'
+    11:24:58 zebra[7282]: dplane dequeues 2 completed work from provider dplane_fpm_nl
+    11:24:58 zebra[7282]: dplane has 2 completed, 0 errors, for zebra main
+
+A further 2 contexts (all incoming work) have been queued to dplane_fpm_nl - all good.
+2 completed contexts were de-queued, which sounds good as that is what we en-queued.
+However, there is an outstanding context from earlier, so there is still outstanding
+work.
+
+Indeed the new 5.5.5.5/32 route is marked as queued:
+
+    O>q 5.5.5.5/32 [110/10] via 192.168.2.2, dp0p1s3, weight 1, 00:01:19
+
+This remains the case until we trigger a FIB update by installation of the
+(eg.) 10.10.10.10/32 route:
+
+    11:26:41 zebra[7282]: dplane: incoming new work counter: 2
+    11:26:41 zebra[7282]: dplane enqueues 2 new work to provider 'Kernel'
+    11:26:41 zebra[7282]: dplane provider 'Kernel': processing
+    11:26:41 zebra[7282]: ID (195) Dplane nexthop update ctx 0x55c429b78ce0 op NH_INSTALL
+    11:26:41 zebra[7282]: 0:10.10.10.10/32 Dplane route update ctx 0x55c429b7a040 op ROUTE_INSTALL
+    11:26:41 zebra[7282]: dplane dequeues 2 completed work from provider Kernel
+    11:26:41 zebra[7282]: dplane enqueues 2 new work to provider 'dplane_fpm_nl'
+    11:26:41 zebra[7282]: dplane dequeues 2 completed work from provider dplane_fpm_nl
+    11:26:41 zebra[7282]: dplane has 2 completed, 0 errors, for zebra main
+    11:26:41 zebra[7282]: zebra2proto: Please add this protocol(2) to proper rt_netlink.c handling
+    11:26:41 zebra[7282]: Nexthop dplane ctx 0x55c429b6fed0, op NH_INSTALL, nexthop ID (193), result SUCCESS
+    11:26:41 zebra[7282]: default(0:254):5.5.5.5/32 Processing dplane result ctx 0x55c429b79690, op ROUTE_INSTALL result SUCCESS
+
+We observe the same 2 enqueues and 2 dequeues as before, which again suggests
+that there is outstanding work.
+
+As expected, the 5.5.5.5/32 route is no longer marked as queued:
+
+    O>* 5.5.5.5/32 [110/10] via 192.168.2.2, dp0p1s3, weight 1, 00:02:06
+
+But the 10.10.10.10/32 route is, as we have not yet processed the completed
+context:
+
+    C>q 10.10.10.10/32 is directly connected, lo, 00:26:05
+
+Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
+(cherry picked from commit 164d8e86081fdf33992b6c45af446bac6103e20c)
+---
+ zebra/dplane_fpm_nl.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/zebra/dplane_fpm_nl.c b/zebra/dplane_fpm_nl.c
+index a369e84..a2f4f99 100644
+--- a/zebra/dplane_fpm_nl.c
++++ b/zebra/dplane_fpm_nl.c
+@@ -1279,6 +1279,15 @@ static int fpm_process_queue(struct thread *t)
+ 		thread_add_timer(fnc->fthread->master, fpm_process_queue,
+ 				 fnc, 0, &fnc->t_dequeue);
+ 
++	/*
++	 * Let the dataplane thread know if there are items in the
++	 * output queue to be processed. Otherwise they may sit
++	 * until the dataplane thread gets scheduled for new,
++	 * unrelated work.
++	 */
++	if (dplane_provider_out_ctx_queue_len(fnc->prov) > 0)
++		dplane_provider_work_ready();
++
+ 	return 0;
+ }
+ 
