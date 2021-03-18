@@ -10,10 +10,10 @@ context.
  1 file changed, 1 insertion(+)
 
 diff --git a/tools/frr-reload.py b/tools/frr-reload.py
-index 88873da..d4f3ea3 100755
+index 88a40d8..810ba11 100755
 --- a/tools/frr-reload.py
 +++ b/tools/frr-reload.py
-@@ -488,6 +488,7 @@ end
+@@ -507,6 +507,7 @@ end
                                  "domainname ",
                                  "dump ",
                                  "enable ",

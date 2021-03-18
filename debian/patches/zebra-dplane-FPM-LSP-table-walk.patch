@@ -14,7 +14,7 @@ Signed-off-by: Duncan Eastoe <duncan.eastoe@att.com>
  2 files changed, 110 insertions(+), 8 deletions(-)
 
 diff --git a/zebra/dplane_fpm_nl.c b/zebra/dplane_fpm_nl.c
-index 94a35a8..cd17cbf 100644
+index a5d654e..a2f4f99 100644
 --- a/zebra/dplane_fpm_nl.c
 +++ b/zebra/dplane_fpm_nl.c
 @@ -104,6 +104,8 @@ struct fpm_nl_ctx {
@@ -184,7 +184,7 @@ index 94a35a8..cd17cbf 100644
  /**
   * Resets the RIB FPM flags so we send all routes again.
   */
-@@ -1248,6 +1343,10 @@ static int fpm_process_event(struct thread *t)
+@@ -1257,6 +1352,10 @@ static int fpm_process_event(struct thread *t)
  
  		fnc->rmac_complete = true;
  		break;
@@ -195,7 +195,7 @@ index 94a35a8..cd17cbf 100644
  
  	default:
  		if (IS_ZEBRA_DEBUG_FPM)
-@@ -1286,6 +1385,8 @@ static int fpm_nl_start(struct zebra_dplane_provider *prov)
+@@ -1295,6 +1394,8 @@ static int fpm_nl_start(struct zebra_dplane_provider *prov)
  static int fpm_nl_finish_early(struct fpm_nl_ctx *fnc)
  {
  	/* Disable all events and close socket. */

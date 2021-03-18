@@ -1,3 +1,7 @@
+From: Vyatta Package Maintainers <DL-vyatta-help@att.com>
+Date: Thu, 18 Mar 2021 11:39:13 +0000
+Subject: frr-maximum-paths-overflow-clear
+
 A bgp neighbor remains in Idle state in the event that
 the number of received prefixes exceeds the configured
 maximum prefix for the neighbor. The neighbor remains in
@@ -14,12 +18,14 @@ overflow when no limit is applied for the neighbor.
 
 Signed-off-by: Dewi Morgan <dewi.morgan@att.com>
 ---
- bgpd/bgpd.c |   32 +++++++++++++++++++++-----------
+ bgpd/bgpd.c | 32 +++++++++++++++++++++-----------
  1 file changed, 21 insertions(+), 11 deletions(-)
 
+diff --git a/bgpd/bgpd.c b/bgpd/bgpd.c
+index 3d4ef7c..e132866 100644
 --- a/bgpd/bgpd.c
 +++ b/bgpd/bgpd.c
-@@ -6527,6 +6527,22 @@
+@@ -6534,6 +6534,22 @@ int peer_unsuppress_map_unset(struct peer *peer, afi_t afi, safi_t safi)
  	return 0;
  }
  
@@ -42,7 +48,7 @@ Signed-off-by: Dewi Morgan <dewi.morgan@att.com>
  int peer_maximum_prefix_set(struct peer *peer, afi_t afi, safi_t safi,
  			    uint32_t max, uint8_t threshold, int warning,
  			    uint16_t restart, bool force)
-@@ -6648,7 +6664,11 @@
+@@ -6655,7 +6671,11 @@ int peer_maximum_prefix_unset(struct peer *peer, afi_t afi, safi_t safi)
  			member->pmax[afi][safi] = 0;
  			member->pmax_threshold[afi][safi] = 0;
  			member->pmax_restart[afi][safi] = 0;
@@ -54,7 +60,7 @@ Signed-off-by: Dewi Morgan <dewi.morgan@att.com>
  	}
  
  	return 0;
-@@ -6852,18 +6872,8 @@
+@@ -6863,18 +6883,8 @@ int peer_clear(struct peer *peer, struct listnode **nnode)
  {
  	if (!CHECK_FLAG(peer->flags, PEER_FLAG_SHUTDOWN)
  	    || !CHECK_FLAG(peer->bgp->flags, BGP_FLAG_SHUTDOWN)) {

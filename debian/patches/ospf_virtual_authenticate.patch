@@ -7,10 +7,10 @@ Subject: ospf_virtual_authenticate
  1 file changed, 15 insertions(+)
 
 diff --git a/ospfd/ospf_vty.c b/ospfd/ospf_vty.c
-index 83ad474..135b66a 100644
+index b5e60c7..a5579d9 100644
 --- a/ospfd/ospf_vty.c
 +++ b/ospfd/ospf_vty.c
-@@ -10240,6 +10240,21 @@ static int config_write_virtual_link(struct vty *vty, struct ospf *ospf)
+@@ -10242,6 +10242,21 @@ static int config_write_virtual_link(struct vty *vty, struct ospf *ospf)
  			else
  				vty_out(vty, " area %s virtual-link %s\n", buf,
  					inet_ntoa(vl_data->vl_peer));
