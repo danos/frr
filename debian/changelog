@@ -1,10 +1,12 @@
-frr (7.6-0danos1~2.gbp4cfc01) UNRELEASED; urgency=medium
+frr (7.6-0danos1) unstable; urgency=medium
 
+  [ Duncan Eastoe ]
   ** SNAPSHOT build @4cfc01f35c029c909daa1cd779956929e2dd5c1a **
 
   * UNRELEASED
+  * 7.6-0danos1~2.gbp4cfc01
 
- -- Duncan Eastoe <duncan.eastoe@att.com>  Tue, 02 Feb 2021 12:13:26 +0000
+ -- Neil McGill <neil.mcgill@intl.att.com>  Tue, 31 Aug 2021 13:47:03 +0100
 
 frr (7.5-0danos1) unstable; urgency=medium
 
